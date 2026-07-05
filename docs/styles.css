@@ -356,6 +356,46 @@ footer a {
   color: #ffffff;
 }
 
+.policy-page {
+  background: #fffaf0;
+}
+
+.policy-header {
+  color: var(--ink);
+  text-shadow: none;
+}
+
+.policy-main {
+  padding-top: 92px;
+}
+
+.policy-hero {
+  padding: clamp(48px, 8vw, 96px) clamp(20px, 7vw, 96px) clamp(36px, 6vw, 72px);
+  background: var(--chalk);
+}
+
+.policy-hero h1 {
+  color: var(--ink);
+}
+
+.policy-content {
+  width: min(920px, 100%);
+  padding: clamp(32px, 6vw, 72px) clamp(20px, 7vw, 96px);
+}
+
+.policy-content h2 {
+  margin: 28px 0 10px;
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  line-height: 1.05;
+}
+
+.policy-content p {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.72;
+  font-weight: 650;
+}
+
 @media (max-width: 920px) {
   .intro-strip,
   .roster,
