@@ -16,6 +16,7 @@
 		A00000000000000000000007 /* cap_flick.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* cap_flick.wav */; };
 		A00000000000000000000008 /* cap_hit.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* cap_hit.wav */; };
 		A00000000000000000000009 /* finish_applause.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000009 /* finish_applause.wav */; };
+		A00000000000000000000010 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000013 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,8 @@
 		B00000000000000000000008 /* cap_hit.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = cap_hit.wav; sourceTree = "<group>"; };
 		B00000000000000000000009 /* finish_applause.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = finish_applause.wav; sourceTree = "<group>"; };
 		B00000000000000000000010 /* Kapselki.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kapselki.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00000000000000000000011 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		B00000000000000000000012 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +60,7 @@
 				D00000000000000000000004 /* Core */,
 				D00000000000000000000005 /* Game */,
 				D00000000000000000000006 /* Audio */,
+				B00000000000000000000013 /* InfoPlist.strings */,
 				B00000000000000000000006 /* Assets.xcassets */,
 			);
 			path = Kapselki;
@@ -96,6 +100,14 @@
 			path = Audio;
 			sourceTree = "<group>";
 		};
+		D00000000000000000000007 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000010 /* Kapselki.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		D00000000000000000000008 /* SFX */ = {
 			isa = PBXGroup;
 			children = (
@@ -106,15 +118,19 @@
 			path = SFX;
 			sourceTree = "<group>";
 		};
-		D00000000000000000000007 /* Products */ = {
-			isa = PBXGroup;
+/* End PBXGroup section */
+
+/* Begin PBXVariantGroup section */
+		B00000000000000000000013 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
 			children = (
-				B00000000000000000000010 /* Kapselki.app */,
+				B00000000000000000000011 /* en */,
+				B00000000000000000000012 /* pl */,
 			);
-			name = Products;
+			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
-/* End PBXGroup section */
+/* End PBXVariantGroup section */
 
 /* Begin PBXNativeTarget section */
 		E00000000000000000000001 /* Kapselki */ = {
@@ -155,6 +171,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				pl,
 				Base,
 			);
 			mainGroup = D00000000000000000000001;
@@ -176,6 +193,7 @@
 				A00000000000000000000007 /* cap_flick.wav in Resources */,
 				A00000000000000000000008 /* cap_hit.wav in Resources */,
 				A00000000000000000000009 /* finish_applause.wav in Resources */,
+				A00000000000000000000010 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -319,13 +337,18 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = K766874BMD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Kapselki;
+				INFOPLIST_KEY_CFBundleLocalizations = "en pl";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lpociask.Kapselki;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -346,13 +369,18 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
+				DEVELOPMENT_TEAM = K766874BMD;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Kapselki;
+				INFOPLIST_KEY_CFBundleLocalizations = "en pl";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lpociask.Kapselki;
 				PRODUCT_NAME = "$(TARGET_NAME)";

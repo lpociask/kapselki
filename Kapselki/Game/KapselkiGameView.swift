@@ -1,6 +1,175 @@
 import SceneKit
 import SwiftUI
 
+enum KapselkiPlayMode: String, CaseIterable, Identifiable, Equatable {
+    case quick
+    case tour
+    case daily
+    case master
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .quick:
+            return "Szybka partyjka".kText
+        case .tour:
+            return "Osiedlowy tour".kText
+        case .daily:
+            return "Wyzwanie dnia".kText
+        case .master:
+            return "Mistrz podwórka".kText
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .quick:
+            return "3 krótkie próby".kText
+        case .tour:
+            return "5 podwórkowych etapów".kText
+        case .daily:
+            return "jedna trasa na dziś".kText
+        case .master:
+            return "5 rund specjalnych".kText
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .quick:
+            return "bolt.fill"
+        case .tour:
+            return "map.fill"
+        case .daily:
+            return "calendar.badge.clock"
+        case .master:
+            return "crown.fill"
+        }
+    }
+}
+
+enum KapselkiObjectiveKind: String, Equatable {
+    case cleanRun
+    case collectPowerUp
+    case lowMoves
+    case saveEnergy
+    case styleScore
+}
+
+struct KapselkiObjective: Equatable {
+    let kind: KapselkiObjectiveKind
+    let title: String
+    let shortTitle: String
+    let hint: String
+    let iconName: String
+    let target: Int
+
+    static func objective(for mode: KapselkiPlayMode, board: KapselkiBoard, stageIndex: Int, date: Date = Date()) -> KapselkiObjective {
+        switch mode {
+        case .quick:
+            return KapselkiObjective(
+                kind: .lowMoves,
+                title: "Szybki finisz".kText,
+                shortTitle: "Meta do 8 pstryków".kText,
+                hint: "Cel: dojedź do mety w maksymalnie 8 pstryków.".kText,
+                iconName: "speedometer",
+                target: 8
+            )
+        case .tour:
+            return tourObjectives[min(stageIndex, tourObjectives.count - 1)]
+        case .daily:
+            let day = Calendar.current.ordinality(of: .day, in: .year, for: date) ?? 1
+            return dailyObjectives[(day + board.rawValue.count) % dailyObjectives.count]
+        case .master:
+            return masterObjectives[min(stageIndex, masterObjectives.count - 1)]
+        }
+    }
+
+    func progressText(moves: Int, penalties: Int, energy: Int, style: Int, powerUps: Int) -> String {
+        switch kind {
+        case .cleanRun:
+            return penalties == 0 ? "czysto".kText : KapselkiL10n.pick(pl: "\(penalties) wyjazd", en: "\(penalties) off track")
+        case .collectPowerUp:
+            return "\(min(powerUps, target))/\(target) bonus"
+        case .lowMoves:
+            return KapselkiL10n.pick(pl: "\(moves)/\(target) pstryków", en: "\(moves)/\(target) flicks")
+        case .saveEnergy:
+            return KapselkiL10n.pick(pl: "\(energy)/\(target) energii", en: "\(energy)/\(target) energy")
+        case .styleScore:
+            return KapselkiL10n.pick(pl: "\(style)/\(target) stylu", en: "\(style)/\(target) style")
+        }
+    }
+
+    func isComplete(moves: Int, penalties: Int, energy: Int, style: Int, powerUps: Int) -> Bool {
+        switch kind {
+        case .cleanRun:
+            return penalties == 0
+        case .collectPowerUp:
+            return powerUps >= target
+        case .lowMoves:
+            return moves > 0 && moves <= target
+        case .saveEnergy:
+            return energy >= target
+        case .styleScore:
+            return style >= target
+        }
+    }
+
+    private static let tourObjectives: [KapselkiObjective] = [
+        KapselkiObjective(kind: .cleanRun, title: "Czysta kreda".kText, shortTitle: "Bez wyjazdu".kText, hint: "Cel: przejedź etap bez wyjazdu za kredę.".kText, iconName: "checkmark.seal.fill", target: 0),
+        KapselkiObjective(kind: .collectPowerUp, title: "Zgarnij bonus".kText, shortTitle: "Weź 1 power-up".kText, hint: "Cel: wpadnij kapslem w przynajmniej jeden bonus.".kText, iconName: "star.circle.fill", target: 1),
+        KapselkiObjective(kind: .lowMoves, title: "Mało pstryków".kText, shortTitle: "Do 11 pstryków".kText, hint: "Cel: dojedź do mety w maksymalnie 11 pstryków.".kText, iconName: "hand.tap.fill", target: 11),
+        KapselkiObjective(kind: .saveEnergy, title: "Zapas siły".kText, shortTitle: "60+ energii".kText, hint: "Cel: dojedź do mety z energią co najmniej 60.".kText, iconName: "bolt.heart.fill", target: 60),
+        KapselkiObjective(kind: .styleScore, title: "Stylowy finał".kText, shortTitle: "120 stylu".kText, hint: "Cel: uzbieraj 120 punktów stylu.".kText, iconName: "sparkles", target: 120)
+    ]
+
+    private static let dailyObjectives: [KapselkiObjective] = [
+        KapselkiObjective(kind: .collectPowerUp, title: "Dzisiejszy łup".kText, shortTitle: "Weź 1 power-up".kText, hint: "Cel dnia: zgarnij bonus i dojedź do mety.".kText, iconName: "star.circle.fill", target: 1),
+        KapselkiObjective(kind: .cleanRun, title: "Czysty dzień".kText, shortTitle: "Bez wyjazdu".kText, hint: "Cel dnia: żadnego wyjazdu za kredę.".kText, iconName: "checkmark.seal.fill", target: 0),
+        KapselkiObjective(kind: .saveEnergy, title: "Oszczędzaj siłę".kText, shortTitle: "55+ energii".kText, hint: "Cel dnia: zachowaj co najmniej 55 energii.".kText, iconName: "bolt.heart.fill", target: 55),
+        KapselkiObjective(kind: .styleScore, title: "Podpis na asfalcie".kText, shortTitle: "110 stylu".kText, hint: "Cel dnia: zrób 110 punktów stylu.".kText, iconName: "sparkles", target: 110)
+    ]
+
+    private static let masterObjectives: [KapselkiObjective] = [
+        KapselkiObjective(kind: .cleanRun, title: "Runda czystości".kText, shortTitle: "Bez wyjazdu".kText, hint: "Cel: przejedź bez wyjazdu za kredę.".kText, iconName: "checkmark.seal.fill", target: 0),
+        KapselkiObjective(kind: .collectPowerUp, title: "Turbo po drodze".kText, shortTitle: "Weź 2 power-upy".kText, hint: "Cel: zbierz dwa bonusy w jednej rundzie.".kText, iconName: "star.circle.fill", target: 2),
+        KapselkiObjective(kind: .lowMoves, title: "Krótka ręka".kText, shortTitle: "Do 10 pstryków".kText, hint: "Cel: meta w maksymalnie 10 pstryków.".kText, iconName: "hand.tap.fill", target: 10),
+        KapselkiObjective(kind: .saveEnergy, title: "Zimna głowa".kText, shortTitle: "65+ energii".kText, hint: "Cel: finisz z energią co najmniej 65.".kText, iconName: "bolt.heart.fill", target: 65),
+        KapselkiObjective(kind: .styleScore, title: "Mistrzowski styl".kText, shortTitle: "135 stylu".kText, hint: "Cel: zakończ z wynikiem stylu 135+.".kText, iconName: "sparkles", target: 135)
+    ]
+}
+
+struct KapselkiCampaignStage: Identifiable, Equatable {
+    let id: Int
+    let board: KapselkiBoard
+    let title: String
+    let subtitle: String
+
+    static let stages: [KapselkiCampaignStage] = [
+        KapselkiCampaignStage(id: 0, board: .sidewalk, title: "Blokowy Chodnik".kText, subtitle: "rozgrzewka na płytach".kText),
+        KapselkiCampaignStage(id: 1, board: .schoolyard, title: "Boisko z Kredą".kText, subtitle: "ciasne zakręty".kText),
+        KapselkiCampaignStage(id: 2, board: .grass, title: "Trawnik za Garażem".kText, subtitle: "miękki ślizg".kText),
+        KapselkiCampaignStage(id: 3, board: .sand, title: "Piaskownica Turbo".kText, subtitle: "ciężkie pstryki".kText),
+        KapselkiCampaignStage(id: 4, board: .table, title: "Kuchenny Finał".kText, subtitle: "szybka gładka meta".kText)
+    ]
+}
+
+struct KapselkiMasterRound: Identifiable, Equatable {
+    let id: Int
+    let board: KapselkiBoard
+    let title: String
+    let subtitle: String
+
+    static let rounds: [KapselkiMasterRound] = [
+        KapselkiMasterRound(id: 0, board: .sidewalk, title: "Czysty Start".kText, subtitle: "bez wyjazdu za kredę".kText),
+        KapselkiMasterRound(id: 1, board: .schoolyard, title: "Turbo Kreda".kText, subtitle: "zgarnij dwa bonusy".kText),
+        KapselkiMasterRound(id: 2, board: .grass, title: "Trawnikowy Slalom".kText, subtitle: "krótka seria pstryków".kText),
+        KapselkiMasterRound(id: 3, board: .sand, title: "Piaskowy Spokój".kText, subtitle: "oszczędzaj energię".kText),
+        KapselkiMasterRound(id: 4, board: .table, title: "Finał na Stole".kText, subtitle: "styl ponad wszystko".kText)
+    ]
+}
+
 struct KapselkiGameView: View {
     private enum Flow {
         case menu
@@ -18,15 +187,20 @@ struct KapselkiGameView: View {
     }
 
     private let introSlides = [
-        IntroSlide(id: 0, iconName: "hand.tap.fill", title: "Pstryknij", body: "Dotknij kapsla, odciągnij palec i puść. Im dalej odciągniesz, tym mocniejszy strzał.", color: KapselkiTheme.yellow),
-        IntroSlide(id: 1, iconName: "scope", title: "Trzymaj kredę", body: "Jedź między kredowymi liniami. Wyjazd poza trasę zabiera energię i psuje styl.", color: KapselkiTheme.blue),
-        IntroSlide(id: 2, iconName: "person.3.fill", title: "Wybierz ekipę", body: "Każda postać ma własny kapsel: inną moc, kontrolę i spin. Dobierz styl do planszy.", color: KapselkiTheme.orange)
+        IntroSlide(id: 0, iconName: "hand.tap.fill", title: "Pstryknij".kText, body: "Dotknij kapsla, odciągnij palec i puść. Im dalej odciągniesz, tym mocniejszy strzał.".kText, color: KapselkiTheme.yellow),
+        IntroSlide(id: 1, iconName: "scope", title: "Trzymaj kredę".kText, body: "Jedź między kredowymi liniami. Wyjazd poza trasę zabiera energię i psuje styl.".kText, color: KapselkiTheme.blue),
+        IntroSlide(id: 2, iconName: "person.3.fill", title: "Wybierz ekipę".kText, body: "Każda postać ma własny kapsel: inną moc, kontrolę i spin. Dobierz styl do planszy.".kText, color: KapselkiTheme.orange)
     ]
 
     @State private var flow: Flow = .menu
     @State private var introIndex = 0
+    @State private var selectedPlayMode: KapselkiPlayMode = .quick
+    @State private var selectedStageIndex = 0
     @State private var selectedBoard: KapselkiBoard = .sidewalk
     @State private var selectedCharacter = KapselkiCharacter.defaultCharacter
+    @State private var lockedCharacterNotice: String?
+    @State private var unlockBanner: String?
+    @AppStorage("kapselki.unlockedCharacters") private var unlockedCharactersRaw = ""
 
     var body: some View {
         GeometryReader { proxy in
@@ -48,9 +222,16 @@ struct KapselkiGameView: View {
                         .transition(.opacity.combined(with: .move(edge: .trailing)))
                 case .race:
                     KapselkiRaceView(
+                        playMode: selectedPlayMode,
                         selectedBoard: selectedBoard,
                         selectedCharacter: selectedCharacter,
-                        onExit: { flow = .setup }
+                        selectedObjective: currentObjective,
+                        stageIndex: selectedStageIndex,
+                        stageCount: currentStageCount,
+                        onExit: { flow = .setup },
+                        onAdvanceStage: advanceSeriesStage,
+                        onRestartSeries: restartSeries,
+                        onUnlockCharacter: unlockCharacter
                     )
                     .transition(.opacity)
                 }
@@ -150,17 +331,39 @@ struct KapselkiGameView: View {
                     .foregroundStyle(KapselkiTheme.ink)
                     .lineLimit(1)
 
-                Text("podwórkowy pstryk na kilka minut")
+                Text("podwórkowy pstryk na kilka minut".kText)
                     .font(.system(size: 13, weight: .black, design: .monospaced))
                     .foregroundStyle(KapselkiTheme.ink.opacity(0.62))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
                 colorTabs
+                menuBadgeRow
             }
 
-            VStack(spacing: 10) {
-                primaryButton(title: "GRAJ", iconName: "play.fill") {
+            VStack(spacing: 8) {
+                primaryButton(title: "SZYBKA PARTYJKA".kText, iconName: "bolt.fill") {
+                    selectedPlayMode = .quick
+                    flow = .setup
+                }
+
+                primaryButton(title: "OSIEDLOWY TOUR".kText, iconName: "map.fill", color: KapselkiTheme.blue, foreground: KapselkiTheme.paper) {
+                    selectedPlayMode = .tour
+                    selectedStageIndex = stageIndex(for: selectedBoard)
+                    flow = .setup
+                }
+
+                primaryButton(title: "WYZWANIE DNIA".kText, iconName: "calendar.badge.clock", color: KapselkiTheme.green, foreground: KapselkiTheme.ink) {
+                    selectedPlayMode = .daily
+                    selectedBoard = dailyChallengeBoard()
+                    selectedStageIndex = 0
+                    flow = .setup
+                }
+
+                primaryButton(title: "MISTRZ PODWÓRKA".kText, iconName: "crown.fill", color: KapselkiTheme.red, foreground: KapselkiTheme.paper) {
+                    selectedPlayMode = .master
+                    selectedStageIndex = 0
+                    selectedBoard = KapselkiMasterRound.rounds[0].board
                     flow = .setup
                 }
 
@@ -172,7 +375,7 @@ struct KapselkiGameView: View {
                         Image(systemName: "questionmark.circle.fill")
                             .font(.system(size: 15, weight: .black))
 
-                        Text("O CO CHODZI")
+                        Text("O CO CHODZI".kText)
                             .font(.system(size: 14, weight: .black, design: .monospaced))
                     }
                     .foregroundStyle(KapselkiTheme.ink)
@@ -205,21 +408,45 @@ struct KapselkiGameView: View {
         .padding(.top, 4)
     }
 
+    private var menuBadgeRow: some View {
+        HStack(spacing: 6) {
+            retroBadge("OSIEDLE '86".kText, color: KapselkiTheme.yellow)
+            retroBadge("PSTRYK".kText, color: KapselkiTheme.red, foreground: KapselkiTheme.paper)
+            retroBadge("BONUSY".kText, color: KapselkiTheme.green)
+        }
+        .padding(.top, 6)
+    }
+
+    private func retroBadge(_ text: String, color: Color, foreground: Color = KapselkiTheme.ink) -> some View {
+        Text(text)
+            .font(.system(size: 8, weight: .black, design: .monospaced))
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 7)
+            .frame(height: 18)
+            .background(color, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .rotationEffect(.degrees(text.count.isMultiple(of: 2) ? -2 : 2))
+    }
+
     private var quickLoadout: some View {
         HStack(spacing: 10) {
             capAvatar(selectedCharacter, size: 54, selected: true)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(selectedCharacter.name)
+                Text(selectedCharacter.localizedName)
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(KapselkiTheme.ink)
                     .lineLimit(1)
 
-                Text("\(selectedCharacter.style) · \(selectedBoard.title)")
+                Text("\(selectedCharacter.localizedStyle) · \(selectedBoard.title)")
                     .font(.system(size: 11, weight: .black, design: .monospaced))
                     .foregroundStyle(KapselkiTheme.ink.opacity(0.56))
                     .lineLimit(1)
                     .minimumScaleFactor(0.68)
+
+                Text(selectedPlayMode.subtitle.uppercased())
+                    .font(.system(size: 8, weight: .black, design: .monospaced))
+                    .foregroundStyle(selectedCharacter.color)
+                    .lineLimit(1)
             }
 
             Spacer(minLength: 0)
@@ -234,10 +461,63 @@ struct KapselkiGameView: View {
                     .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Wybór kapsla")
+            .accessibilityLabel("Wybór kapsla".kText)
         }
         .padding(10)
         .kapselkiPanel()
+    }
+
+    private func stageIndex(for board: KapselkiBoard) -> Int {
+        KapselkiCampaignStage.stages.firstIndex { $0.board == board } ?? 0
+    }
+
+    private var currentStageCount: Int {
+        switch selectedPlayMode {
+        case .quick, .daily:
+            return 1
+        case .tour:
+            return KapselkiCampaignStage.stages.count
+        case .master:
+            return KapselkiMasterRound.rounds.count
+        }
+    }
+
+    private var currentObjective: KapselkiObjective {
+        KapselkiObjective.objective(for: selectedPlayMode, board: selectedBoard, stageIndex: selectedStageIndex)
+    }
+
+    private func dailyChallengeBoard(date: Date = Date()) -> KapselkiBoard {
+        let day = Calendar.current.ordinality(of: .day, in: .year, for: date) ?? 1
+        let boards = KapselkiBoard.allCases
+        return boards[day % boards.count]
+    }
+
+    private func advanceSeriesStage() {
+        switch selectedPlayMode {
+        case .tour:
+            let nextIndex = min(selectedStageIndex + 1, KapselkiCampaignStage.stages.count - 1)
+            selectedStageIndex = nextIndex
+            selectedBoard = KapselkiCampaignStage.stages[nextIndex].board
+        case .master:
+            let nextIndex = min(selectedStageIndex + 1, KapselkiMasterRound.rounds.count - 1)
+            selectedStageIndex = nextIndex
+            selectedBoard = KapselkiMasterRound.rounds[nextIndex].board
+        case .quick, .daily:
+            break
+        }
+    }
+
+    private func restartSeries() {
+        switch selectedPlayMode {
+        case .tour:
+            selectedStageIndex = 0
+            selectedBoard = KapselkiCampaignStage.stages[0].board
+        case .master:
+            selectedStageIndex = 0
+            selectedBoard = KapselkiMasterRound.rounds[0].board
+        case .quick, .daily:
+            break
+        }
     }
 
     private func introScreen(proxy: GeometryProxy) -> some View {
@@ -256,7 +536,7 @@ struct KapselkiGameView: View {
 
                 Spacer()
 
-                Text("JAK SIĘ GRA")
+                Text("JAK SIĘ GRA".kText)
                     .font(.system(size: 13, weight: .black, design: .monospaced))
                     .foregroundStyle(KapselkiTheme.ink.opacity(0.62))
             }
@@ -291,7 +571,7 @@ struct KapselkiGameView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
 
-            primaryButton(title: introIndex == introSlides.count - 1 ? "WYBIERZ KAPSEL" : "DALEJ", iconName: "arrow.right") {
+            primaryButton(title: introIndex == introSlides.count - 1 ? "WYBIERZ KAPSEL".kText : "DALEJ".kText, iconName: "arrow.right") {
                 if introIndex < introSlides.count - 1 {
                     introIndex += 1
                 } else {
@@ -318,11 +598,11 @@ struct KapselkiGameView: View {
                 .buttonStyle(.plain)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("WYBÓR KAPSLA")
+                    Text(setupTitle)
                         .font(.system(size: 18, weight: .black, design: .rounded))
                         .foregroundStyle(KapselkiTheme.ink)
 
-                    Text("\(selectedCharacter.name) · \(selectedBoard.title)")
+                    Text(setupSubtitle)
                         .font(.system(size: 9, weight: .black, design: .monospaced))
                         .foregroundStyle(KapselkiTheme.ink.opacity(0.56))
                         .lineLimit(1)
@@ -331,12 +611,19 @@ struct KapselkiGameView: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
-            .padding(.top, max(12, proxy.safeAreaInsets.top + 8))
+            .padding(.top, 0)
             .padding(.bottom, 8)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 14) {
                     selectedLoadoutCard
+                    objectiveSetupCard
+                    if let unlockBanner {
+                        unlockInfoCard(text: unlockBanner, iconName: "sparkles", color: KapselkiTheme.green)
+                    }
+                    if let lockedCharacterNotice {
+                        unlockInfoCard(text: lockedCharacterNotice, iconName: "lock.fill", color: KapselkiTheme.yellow)
+                    }
                     characterSelection
                     boardSelection
                 }
@@ -345,7 +632,7 @@ struct KapselkiGameView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            primaryButton(title: "START RUNDY", iconName: "flag.checkered") {
+            primaryButton(title: setupStartTitle, iconName: "flag.checkered") {
                 flow = .race
             }
             .padding(.horizontal, 24)
@@ -353,25 +640,118 @@ struct KapselkiGameView: View {
         }
     }
 
+    private var setupTitle: String {
+        switch selectedPlayMode {
+        case .quick:
+            return "SZYBKA PARTYJKA".kText
+        case .tour:
+            return "OSIEDLOWY TOUR".kText
+        case .daily:
+            return "WYZWANIE DNIA".kText
+        case .master:
+            return "MISTRZ PODWÓRKA".kText
+        }
+    }
+
+    private var setupStartTitle: String {
+        switch selectedPlayMode {
+        case .quick:
+            return "START 3 PRÓB".kText
+        case .tour:
+            return "START ETAPU".kText
+        case .daily:
+            return "START DNIA".kText
+        case .master:
+            return "START RUNDY".kText
+        }
+    }
+
+    private var setupSubtitle: String {
+        switch selectedPlayMode {
+        case .quick:
+            return KapselkiL10n.pick(pl: "\(selectedCharacter.localizedName) · \(selectedBoard.title) · 3 próby", en: "\(selectedCharacter.localizedName) · \(selectedBoard.title) · 3 runs")
+        case .tour:
+            let stage = KapselkiCampaignStage.stages[selectedStageIndex]
+            return KapselkiL10n.pick(pl: "Etap \(selectedStageIndex + 1)/\(KapselkiCampaignStage.stages.count) · \(stage.title)", en: "Stage \(selectedStageIndex + 1)/\(KapselkiCampaignStage.stages.count) · \(stage.title)")
+        case .daily:
+            return KapselkiL10n.pick(pl: "Dzisiaj · \(dailyChallengeBoard().title) · \(currentObjective.shortTitle)", en: "Today · \(dailyChallengeBoard().title) · \(currentObjective.shortTitle)")
+        case .master:
+            let round = KapselkiMasterRound.rounds[selectedStageIndex]
+            return KapselkiL10n.pick(pl: "Runda \(selectedStageIndex + 1)/\(KapselkiMasterRound.rounds.count) · \(round.title)", en: "Round \(selectedStageIndex + 1)/\(KapselkiMasterRound.rounds.count) · \(round.title)")
+        }
+    }
+
+    private var unlockedCharacterIDs: Set<String> {
+        Set(unlockedCharactersRaw.split(separator: ",").map(String.init))
+    }
+
+    private func isCharacterUnlocked(_ character: KapselkiCharacter) -> Bool {
+        character.unlockRequirement == nil || unlockedCharacterIDs.contains(character.id)
+    }
+
+    private func unlockCharacter(id: String) -> String? {
+        guard let character = KapselkiCharacter.roster.first(where: { $0.id == id }),
+              character.unlockRequirement != nil,
+              !isCharacterUnlocked(character)
+        else {
+            return nil
+        }
+
+        var ids = unlockedCharacterIDs
+        ids.insert(id)
+        unlockedCharactersRaw = ids.sorted().joined(separator: ",")
+        unlockBanner = KapselkiL10n.pick(pl: "\(character.localizedName) odblokowany!", en: "\(character.localizedName) unlocked!")
+        lockedCharacterNotice = nil
+        return character.localizedName
+    }
+
+    private func unlockInfoCard(text: String, iconName: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: iconName)
+                .font(.system(size: 13, weight: .black))
+                .foregroundStyle(KapselkiTheme.ink)
+                .frame(width: 32, height: 30)
+                .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+            Text(text)
+                .font(.system(size: 11, weight: .black, design: .rounded))
+                .foregroundStyle(KapselkiTheme.ink.opacity(0.76))
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+
+            Spacer(minLength: 0)
+        }
+        .padding(9)
+        .background(.white.opacity(0.26), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
     private var selectedLoadoutCard: some View {
         HStack(spacing: 14) {
             capAvatar(selectedCharacter, size: 86, selected: true)
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(selectedCharacter.name)
+                Text(selectedCharacter.localizedName)
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundStyle(KapselkiTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
 
-                Text(selectedCharacter.style.uppercased())
+                Text(selectedCharacter.localizedStyle.uppercased())
                     .font(.system(size: 10, weight: .black, design: .monospaced))
                     .foregroundStyle(selectedCharacter.color)
 
-                Text(selectedCharacter.capDescription)
+                Text(selectedCharacter.trait.uppercased())
+                    .font(.system(size: 9, weight: .black, design: .monospaced))
+                    .foregroundStyle(KapselkiTheme.blue)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.66)
+
+                Text(selectedCharacter.localizedCapDescription)
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(KapselkiTheme.ink.opacity(0.66))
-                    .lineLimit(3)
+                    .lineLimit(2)
+
+                characterStatsRow
             }
 
             Spacer(minLength: 0)
@@ -380,29 +760,107 @@ struct KapselkiGameView: View {
         .kapselkiPanel()
     }
 
+    private var objectiveSetupCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: currentObjective.iconName)
+                .font(.system(size: 18, weight: .black))
+                .foregroundStyle(KapselkiTheme.ink)
+                .frame(width: 46, height: 42)
+                .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(currentObjective.title)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(KapselkiTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text(currentObjective.hint)
+                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                    .foregroundStyle(KapselkiTheme.ink.opacity(0.62))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.70)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(KapselkiTheme.green.opacity(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(KapselkiTheme.ink.opacity(0.12), lineWidth: 1)
+        )
+    }
+
+    private var characterStatsRow: some View {
+        HStack(spacing: 6) {
+            statPill(KapselkiL10n.pick(pl: "MOC", en: "PWR"), selectedCharacter.powerScore, KapselkiTheme.red)
+            statPill(KapselkiL10n.pick(pl: "CEL", en: "AIM"), selectedCharacter.controlScore, KapselkiTheme.blue)
+            statPill("SPIN", selectedCharacter.spinScore, KapselkiTheme.green)
+        }
+    }
+
+    private func statPill(_ label: String, _ value: Int, _ color: Color) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.system(size: 7, weight: .black, design: .monospaced))
+
+            Text(String(repeating: "●", count: max(1, min(7, value))))
+                .font(.system(size: 7, weight: .black, design: .monospaced))
+        }
+        .foregroundStyle(KapselkiTheme.ink)
+        .padding(.horizontal, 6)
+        .frame(height: 20)
+        .background(color.opacity(0.22), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
     private var characterSelection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("EKIPA")
+            Text("EKIPA".kText)
                 .font(.system(size: 11, weight: .black, design: .monospaced))
                 .foregroundStyle(KapselkiTheme.ink.opacity(0.58))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 78), spacing: 8)], spacing: 8) {
                 ForEach(KapselkiCharacter.roster) { character in
+                    let isUnlocked = isCharacterUnlocked(character)
                     Button {
-                        selectedCharacter = character
+                        if isUnlocked {
+                            selectedCharacter = character
+                            lockedCharacterNotice = nil
+                            unlockBanner = nil
+                        } else {
+                            lockedCharacterNotice = character.localizedUnlockRequirement ?? "Ta postać jest jeszcze zablokowana.".kText
+                            unlockBanner = nil
+                        }
                     } label: {
                         VStack(spacing: 5) {
-                            capAvatar(character, size: 54, selected: selectedCharacter == character)
+                            ZStack(alignment: .bottomTrailing) {
+                                capAvatar(character, size: 54, selected: selectedCharacter == character && isUnlocked)
+                                    .saturation(isUnlocked ? 1 : 0.08)
+                                    .opacity(isUnlocked ? 1 : 0.48)
 
-                            Text(character.shortName.uppercased())
+                                if !isUnlocked {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 9, weight: .black))
+                                        .foregroundStyle(KapselkiTheme.paper)
+                                        .frame(width: 22, height: 20)
+                                        .background(KapselkiTheme.ink.opacity(0.78), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                        .offset(x: 2, y: 2)
+                                }
+                            }
+
+                            Text(character.localizedShortName.uppercased())
                                 .font(.system(size: 8, weight: .black, design: .monospaced))
-                                .foregroundStyle(KapselkiTheme.ink)
+                                .foregroundStyle(isUnlocked ? KapselkiTheme.ink : KapselkiTheme.ink.opacity(0.42))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.62)
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 78)
-                        .background(selectedCharacter == character ? character.color.opacity(0.18) : .white.opacity(0.28), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .background(
+                            selectedCharacter == character && isUnlocked ? character.color.opacity(0.18) : (isUnlocked ? .white.opacity(0.28) : KapselkiTheme.ink.opacity(0.08)),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -412,47 +870,126 @@ struct KapselkiGameView: View {
 
     private var boardSelection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("PLANSZE")
+            Text(boardSelectionTitle)
                 .font(.system(size: 11, weight: .black, design: .monospaced))
                 .foregroundStyle(KapselkiTheme.ink.opacity(0.58))
 
             VStack(spacing: 8) {
-                ForEach(KapselkiBoard.allCases) { board in
-                    Button {
-                        selectedBoard = board
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: board.iconName)
-                                .font(.system(size: 16, weight: .black))
-                                .foregroundStyle(selectedBoard == board ? KapselkiTheme.ink : KapselkiTheme.paper)
-                                .frame(width: 42, height: 38)
-                                .background(selectedBoard == board ? board.tint : KapselkiTheme.ink.opacity(0.58), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(board.title)
-                                    .font(.system(size: 14, weight: .black, design: .rounded))
-                                    .foregroundStyle(KapselkiTheme.ink)
-
-                                Text(board.subtitle)
-                                    .font(.system(size: 10, weight: .black, design: .monospaced))
-                                    .foregroundStyle(KapselkiTheme.ink.opacity(0.54))
-                            }
-
-                            Spacer()
-
-                            if selectedBoard == board {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 18, weight: .black))
-                                    .foregroundStyle(board.tint)
-                            }
+                switch selectedPlayMode {
+                case .quick:
+                    ForEach(KapselkiBoard.allCases) { board in
+                        boardButton(
+                            title: board.title,
+                            subtitle: board.subtitle,
+                            iconName: board.iconName,
+                            tint: board.tint,
+                            isSelected: selectedBoard == board
+                        ) {
+                            selectedBoard = board
+                            selectedStageIndex = stageIndex(for: board)
                         }
-                        .padding(9)
-                        .background(selectedBoard == board ? board.tint.opacity(0.16) : .white.opacity(0.24), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                     }
-                    .buttonStyle(.plain)
+                case .tour:
+                    ForEach(KapselkiCampaignStage.stages) { stage in
+                        boardButton(
+                            title: "\(stage.id + 1). \(stage.title)",
+                            subtitle: stage.subtitle,
+                            iconName: stage.board.iconName,
+                            tint: stage.board.tint,
+                            isSelected: selectedStageIndex == stage.id
+                        ) {
+                            selectedStageIndex = stage.id
+                            selectedBoard = stage.board
+                        }
+                    }
+                case .daily:
+                    dailyBoardSelectionButton
+                case .master:
+                    ForEach(KapselkiMasterRound.rounds) { round in
+                        boardButton(
+                            title: "\(round.id + 1). \(round.title)",
+                            subtitle: "\(round.subtitle) · \(KapselkiObjective.objective(for: .master, board: round.board, stageIndex: round.id).shortTitle)",
+                            iconName: round.board.iconName,
+                            tint: round.board.tint,
+                            isSelected: selectedStageIndex == round.id
+                        ) {
+                            selectedStageIndex = round.id
+                            selectedBoard = round.board
+                        }
+                    }
                 }
             }
         }
+    }
+
+    private var dailyBoardSelectionButton: some View {
+        let board = dailyChallengeBoard()
+        return boardButton(
+            title: KapselkiL10n.pick(pl: "Dzisiaj: \(board.title)", en: "Today: \(board.title)"),
+            subtitle: "\(board.subtitle) · \(currentObjective.shortTitle)",
+            iconName: board.iconName,
+            tint: board.tint,
+            isSelected: true
+        ) {
+            selectedBoard = board
+            selectedStageIndex = 0
+        }
+    }
+
+    private var boardSelectionTitle: String {
+        switch selectedPlayMode {
+        case .quick:
+            return "PLANSZE".kText
+        case .tour:
+            return "ETAPY TOURU".kText
+        case .daily:
+            return "TRASA DNIA".kText
+        case .master:
+            return "RUNDY MISTRZA".kText
+        }
+    }
+
+    private func boardButton(
+        title: String,
+        subtitle: String,
+        iconName: String,
+        tint: Color,
+        isSelected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: iconName)
+                    .font(.system(size: 16, weight: .black))
+                    .foregroundStyle(isSelected ? KapselkiTheme.ink : KapselkiTheme.paper)
+                    .frame(width: 42, height: 38)
+                    .background(isSelected ? tint : KapselkiTheme.ink.opacity(0.58), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundStyle(KapselkiTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(subtitle)
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
+                        .foregroundStyle(KapselkiTheme.ink.opacity(0.54))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18, weight: .black))
+                        .foregroundStyle(tint)
+                }
+            }
+            .padding(9)
+            .background(isSelected ? tint.opacity(0.16) : .white.opacity(0.24), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func capAvatar(_ character: KapselkiCharacter, size: CGFloat, selected: Bool) -> some View {
@@ -461,14 +998,28 @@ struct KapselkiGameView: View {
             .scaledToFill()
             .frame(width: size, height: size)
             .clipShape(Circle())
+            .background(
+                Circle()
+                    .fill(selected ? character.color.opacity(0.22) : KapselkiTheme.paper.opacity(0.40))
+                    .scaleEffect(selected ? 1.18 : 1.04)
+            )
             .overlay(
                 Circle()
                     .stroke(character.color, lineWidth: selected ? 4 : 2)
             )
+            .scaleEffect(selected ? 1.06 : 1)
+            .rotationEffect(.degrees(selected ? -3 : 0))
             .shadow(color: .black.opacity(selected ? 0.18 : 0.08), radius: selected ? 8 : 3, x: 0, y: selected ? 4 : 2)
+            .animation(.spring(response: 0.24, dampingFraction: 0.74), value: selected)
     }
 
-    private func primaryButton(title: String, iconName: String, action: @escaping () -> Void) -> some View {
+    private func primaryButton(
+        title: String,
+        iconName: String,
+        color: Color = KapselkiTheme.yellow,
+        foreground: Color = KapselkiTheme.ink,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 9) {
                 Text(title)
@@ -479,10 +1030,10 @@ struct KapselkiGameView: View {
                 Image(systemName: iconName)
                     .font(.system(size: 16, weight: .black))
             }
-            .foregroundStyle(KapselkiTheme.ink)
+            .foregroundStyle(foreground)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
-            .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(color, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .stroke(KapselkiTheme.ink.opacity(0.16), lineWidth: 1)
@@ -495,14 +1046,26 @@ struct KapselkiGameView: View {
 private struct KapselkiRaceView: View {
     @StateObject private var controller = KapselkiSceneController()
     @StateObject private var audioPlayer = KapselkiAudioPlayer()
+    let playMode: KapselkiPlayMode
     let selectedBoard: KapselkiBoard
     let selectedCharacter: KapselkiCharacter
+    let selectedObjective: KapselkiObjective
+    let stageIndex: Int
+    let stageCount: Int
     let onExit: () -> Void
+    let onAdvanceStage: () -> Void
+    let onRestartSeries: () -> Void
+    let onUnlockCharacter: (String) -> String?
     @State private var dragStart: CGPoint?
     @State private var isCameraControlVisible = false
     @State private var cameraStickOffset = CGSize.zero
     @State private var cameraLiftStickOffset: CGFloat = 0
     @State private var cameraZoomStickOffset: CGFloat = 0
+    @State private var quickAttempt = 1
+    @State private var feedbackToast: String?
+    @State private var feedbackToastID = UUID()
+
+    private let quickAttemptLimit = 3
 
     var body: some View {
         GeometryReader { proxy in
@@ -524,7 +1087,7 @@ private struct KapselkiRaceView: View {
                     bottomDock(proxy: proxy, compact: isLandscape)
                 }
                 .padding(.horizontal, sidePadding)
-                .padding(.top, max(8, proxy.safeAreaInsets.top + 4))
+                .padding(.top, 0)
                 .padding(.bottom, isLandscape ? max(8, proxy.safeAreaInsets.bottom + 6) : max(10, proxy.safeAreaInsets.bottom + 8))
 
                 if isCameraControlVisible {
@@ -541,6 +1104,14 @@ private struct KapselkiRaceView: View {
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
 
+                if let feedbackToast {
+                    feedbackToastView(feedbackToast)
+                        .padding(.top, isLandscape ? 58 : 96)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .transition(.scale(scale: 0.86).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                }
+
                 if let result = controller.finishResult {
                     finishOverlay(result)
                         .transition(.scale(scale: 0.94).combined(with: .opacity))
@@ -548,7 +1119,24 @@ private struct KapselkiRaceView: View {
             }
             .background(KapselkiTheme.sky)
             .onAppear {
-                controller.configure(board: selectedBoard, player: selectedCharacter)
+                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+            }
+            .onChange(of: selectedBoard) { _, _ in
+                quickAttempt = 1
+                setCameraControlsVisible(false)
+                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+            }
+            .onChange(of: selectedCharacter) { _, _ in
+                quickAttempt = 1
+                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+            }
+            .onChange(of: playMode) { _, _ in
+                quickAttempt = 1
+                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+            }
+            .onChange(of: selectedObjective) { _, _ in
+                quickAttempt = 1
+                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
             }
             .onChange(of: controller.flickCue) { _, _ in
                 audioPlayer.play("cap_flick")
@@ -556,10 +1144,21 @@ private struct KapselkiRaceView: View {
             .onChange(of: controller.hitCue) { _, _ in
                 audioPlayer.play("cap_hit")
             }
+            .onChange(of: controller.penaltyCue) { _, _ in
+                audioPlayer.play("cap_hit")
+            }
             .onChange(of: controller.finishCue) { _, _ in
                 audioPlayer.play("finish_applause")
+                if let result = controller.finishResult {
+                    handleUnlocks(for: result)
+                }
+            }
+            .onChange(of: controller.feedbackCue) { _, _ in
+                showFeedbackToast(controller.feedbackText)
             }
             .sensoryFeedback(.impact(weight: .medium), trigger: controller.flickCue)
+            .sensoryFeedback(.impact(weight: .heavy), trigger: controller.hitCue)
+            .sensoryFeedback(.impact(weight: .heavy), trigger: controller.feedbackCue)
             .sensoryFeedback(.warning, trigger: controller.penaltyCue)
             .sensoryFeedback(.success, trigger: controller.finishCue)
         }
@@ -586,11 +1185,13 @@ private struct KapselkiRaceView: View {
                 .frame(width: 112, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(selectedCharacter.name.uppercased())
+                    Text(raceContextText.uppercased())
                         .font(.system(size: 8, weight: .black, design: .monospaced))
                         .foregroundStyle(selectedCharacter.color)
                         .lineLimit(1)
                         .minimumScaleFactor(0.68)
+
+                    objectiveHUDText(compact: true)
 
                     progressBar
                         .frame(height: 5)
@@ -599,9 +1200,9 @@ private struct KapselkiRaceView: View {
                 Spacer(minLength: 4)
 
                 HStack(spacing: 5) {
-                    hudMetric("\(controller.moveCount)", "Pstryki", "hand.tap.fill", compact: true)
-                    hudMetric("\(controller.penaltyCount)", "Kreda", "exclamationmark.triangle.fill", compact: true)
-                    hudMetric("\(controller.energy)", "Energia", "bolt.fill", compact: true)
+                    hudMetric("\(controller.moveCount)", "Pstryki".kText, "hand.tap.fill", compact: true)
+                    hudMetric("\(controller.penaltyCount)", "Kreda".kText, "exclamationmark.triangle.fill", compact: true)
+                    hudMetric("\(controller.energy)", "Energia".kText, "bolt.fill", compact: true)
                 }
             }
             .padding(8)
@@ -623,19 +1224,27 @@ private struct KapselkiRaceView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.68)
 
-                        Text(selectedCharacter.name.uppercased())
+                        Text(selectedCharacter.localizedName.uppercased())
                             .font(.system(size: 8, weight: .black, design: .monospaced))
                             .foregroundStyle(selectedCharacter.color)
                             .lineLimit(1)
                             .minimumScaleFactor(0.68)
+
+                        Text(raceContextText.uppercased())
+                            .font(.system(size: 7, weight: .black, design: .monospaced))
+                            .foregroundStyle(KapselkiTheme.blue)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.68)
+
+                        objectiveHUDText(compact: false)
                     }
 
                     Spacer(minLength: 4)
 
                     HStack(spacing: 5) {
-                        hudMetric("\(controller.moveCount)", "Pstryki", "hand.tap.fill")
-                        hudMetric("\(controller.penaltyCount)", "Kreda", "exclamationmark.triangle.fill")
-                        hudMetric("\(controller.energy)", "Energia", "bolt.fill")
+                    hudMetric("\(controller.moveCount)", "Pstryki".kText, "hand.tap.fill")
+                    hudMetric("\(controller.penaltyCount)", "Kreda".kText, "exclamationmark.triangle.fill")
+                    hudMetric("\(controller.energy)", "Energia".kText, "bolt.fill")
                     }
                 }
 
@@ -658,6 +1267,32 @@ private struct KapselkiRaceView: View {
                     .frame(width: max(8, progressProxy.size.width * CGFloat(controller.progressPercent) / 100))
             }
         }
+    }
+
+    private var raceContextText: String {
+        switch playMode {
+        case .quick:
+            return KapselkiL10n.pick(pl: "Próba \(quickAttempt)/\(quickAttemptLimit)", en: "Run \(quickAttempt)/\(quickAttemptLimit)")
+        case .tour:
+            return KapselkiL10n.pick(pl: "Etap \(stageIndex + 1)/\(stageCount)", en: "Stage \(stageIndex + 1)/\(stageCount)")
+        case .daily:
+            return "Wyzwanie dnia".kText
+        case .master:
+            return KapselkiL10n.pick(pl: "Runda \(stageIndex + 1)/\(stageCount)", en: "Round \(stageIndex + 1)/\(stageCount)")
+        }
+    }
+
+    private func objectiveHUDText(compact: Bool) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: controller.objectiveComplete ? "checkmark.circle.fill" : selectedObjective.iconName)
+                .font(.system(size: compact ? 7 : 8, weight: .black))
+
+            Text(controller.objectiveProgressText.uppercased())
+                .font(.system(size: compact ? 7 : 8, weight: .black, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.62)
+        }
+        .foregroundStyle(controller.objectiveComplete ? KapselkiTheme.green : KapselkiTheme.ink.opacity(0.62))
     }
 
     private func hudMetric(_ value: String, _ label: String, _ iconName: String, compact: Bool = false) -> some View {
@@ -692,7 +1327,7 @@ private struct KapselkiRaceView: View {
                     foreground: KapselkiTheme.paper,
                     width: 42,
                     height: 36,
-                    accessibility: "Menu"
+                    accessibility: "Menu".kText
                 ) {
                     setCameraControlsVisible(false)
                     onExit()
@@ -706,7 +1341,7 @@ private struct KapselkiRaceView: View {
                     foreground: KapselkiTheme.paper,
                     width: 44,
                     height: 36,
-                    accessibility: "Kamera"
+                    accessibility: "Kamera".kText
                 ) {
                     setCameraControlsVisible(!isCameraControlVisible)
                 }
@@ -716,7 +1351,7 @@ private struct KapselkiRaceView: View {
                     background: KapselkiTheme.yellow,
                     width: 42,
                     height: 36,
-                    accessibility: "Restart"
+                    accessibility: "Restart".kText
                 ) {
                     controller.resetRun()
                 }
@@ -744,7 +1379,7 @@ private struct KapselkiRaceView: View {
                         iconName: "house.fill",
                         background: KapselkiTheme.ink.opacity(0.64),
                         foreground: KapselkiTheme.paper,
-                        accessibility: "Menu"
+                        accessibility: "Menu".kText
                     ) {
                         setCameraControlsVisible(false)
                         onExit()
@@ -756,7 +1391,7 @@ private struct KapselkiRaceView: View {
                         iconName: "camera.viewfinder",
                         background: isCameraControlVisible ? selectedCharacter.color : KapselkiTheme.blue,
                         foreground: KapselkiTheme.paper,
-                        accessibility: "Kamera"
+                        accessibility: "Kamera".kText
                     ) {
                         setCameraControlsVisible(!isCameraControlVisible)
                     }
@@ -772,7 +1407,7 @@ private struct KapselkiRaceView: View {
                     dockButton(
                         iconName: "arrow.counterclockwise",
                         background: KapselkiTheme.yellow,
-                        accessibility: "Restart"
+                        accessibility: "Restart".kText
                     ) {
                         controller.resetRun()
                     }
@@ -836,12 +1471,12 @@ private struct KapselkiRaceView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(selectedCharacter.shortName)
+                    Text(selectedCharacter.localizedShortName)
                         .font(.system(size: 12, weight: .black, design: .rounded))
                         .foregroundStyle(KapselkiTheme.ink)
                         .lineLimit(1)
 
-                    Text(selectedCharacter.style.uppercased())
+                    Text(selectedCharacter.localizedStyle.uppercased())
                         .font(.system(size: 7, weight: .black, design: .monospaced))
                         .foregroundStyle(selectedCharacter.color)
                         .lineLimit(1)
@@ -863,19 +1498,19 @@ private struct KapselkiRaceView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 5) {
-                        Text(selectedCharacter.name)
+                        Text(selectedCharacter.localizedName)
                             .font(.system(size: 13, weight: .black, design: .rounded))
                             .foregroundStyle(KapselkiTheme.ink)
                             .lineLimit(1)
 
-                        Text(selectedCharacter.style.uppercased())
+                        Text(selectedCharacter.localizedStyle.uppercased())
                             .font(.system(size: 8, weight: .black, design: .monospaced))
                             .foregroundStyle(selectedCharacter.color)
                             .lineLimit(1)
                             .minimumScaleFactor(0.65)
                     }
 
-                    Text(selectedCharacter.capDescription)
+                    Text(selectedCharacter.localizedCapDescription)
                         .font(.system(size: proxy.size.width < 430 ? 9 : 10, weight: .bold, design: .rounded))
                         .foregroundStyle(KapselkiTheme.ink.opacity(0.62))
                         .lineLimit(2)
@@ -908,7 +1543,7 @@ private struct KapselkiRaceView: View {
                 systemImage: "arrow.up.and.down",
                 offset: $cameraLiftStickOffset,
                 compact: compact,
-                label: "Podnieś albo opuść kamerę"
+                label: "Podnieś albo opuść kamerę".kText
             ) { value in
                 controller.updateCameraLiftInput(value)
             }
@@ -917,7 +1552,7 @@ private struct KapselkiRaceView: View {
                 systemImage: "plus.magnifyingglass",
                 offset: $cameraZoomStickOffset,
                 compact: compact,
-                label: "Przybliż albo oddal kamerę"
+                label: "Przybliż albo oddal kamerę".kText
             ) { value in
                 controller.updateCameraZoomInput(value)
             }
@@ -986,7 +1621,7 @@ private struct KapselkiRaceView: View {
                     }
                 }
         )
-        .accessibilityLabel("Porusz kamerą")
+        .accessibilityLabel("Porusz kamerą".kText)
     }
 
     private func cameraAxisRail(
@@ -1066,48 +1701,98 @@ private struct KapselkiRaceView: View {
             .allowsHitTesting(false)
     }
 
+    private func feedbackToastView(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 14, weight: .black))
+
+            Text(text.uppercased())
+                .font(.system(size: 13, weight: .black, design: .monospaced))
+                .lineLimit(1)
+                .minimumScaleFactor(0.66)
+        }
+        .foregroundStyle(KapselkiTheme.ink)
+        .padding(.horizontal, 13)
+        .frame(height: 36)
+        .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(KapselkiTheme.ink.opacity(0.20), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 5)
+    }
+
+    private func showFeedbackToast(_ text: String) {
+        guard !text.isEmpty else {
+            return
+        }
+
+        let toastID = UUID()
+        feedbackToastID = toastID
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.78)) {
+            feedbackToast = text
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.85) {
+            guard feedbackToastID == toastID else {
+                return
+            }
+            withAnimation(.easeOut(duration: 0.18)) {
+                feedbackToast = nil
+            }
+        }
+    }
+
     private func finishOverlay(_ result: KapselkiRunResult) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: result.medalRank >= 3 ? "trophy.fill" : "flag.checkered")
-                .font(.system(size: 30, weight: .black))
-                .foregroundStyle(KapselkiTheme.yellow)
-                .frame(width: 62, height: 62)
-                .background(KapselkiTheme.ink, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        ZStack {
+            finishConfettiLayer
 
-            Text(result.title)
-                .font(.system(size: 26, weight: .black, design: .rounded))
-                .foregroundStyle(KapselkiTheme.ink)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                finishPodium(result)
 
-            Text(result.summary)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(KapselkiTheme.ink.opacity(0.70))
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(result.title)
+                    .font(.system(size: 26, weight: .black, design: .rounded))
+                    .foregroundStyle(KapselkiTheme.ink)
+                    .multilineTextAlignment(.center)
 
-            HStack(spacing: 8) {
-                resultTile("\(result.place)/\(result.boardSize)", "Miejsce")
-                resultTile("\(result.moves)", "Pstryki")
-                resultTile("\(result.penalties)", "Wyjazdy")
-                resultTile("\(result.styleScore)", "Styl")
-            }
+                Text(result.summary)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(KapselkiTheme.ink.opacity(0.70))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Button {
-                controller.resetRun()
-            } label: {
-                HStack {
-                    Text("JESZCZE RAZ")
-                        .font(.system(size: 15, weight: .black, design: .monospaced))
+                Text(finishContextText)
+                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                    .foregroundStyle(selectedCharacter.color)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
 
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 15, weight: .black))
+                objectiveFinishBadge(result)
+
+                HStack(spacing: 6) {
+                    resultTile("\(result.place)/\(result.boardSize)", "Miejsce".kText)
+                    resultTile("\(result.moves)", "Pstryki".kText)
+                    resultTile("\(result.penalties)", "Wyjazdy".kText)
+                    resultTile("\(result.styleScore)", "Styl".kText)
                 }
-                .foregroundStyle(KapselkiTheme.ink)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                Button {
+                    handleFinishPrimaryAction()
+                } label: {
+                    HStack {
+                        Text(finishPrimaryTitle)
+                            .font(.system(size: 15, weight: .black, design: .monospaced))
+
+                        Image(systemName: finishPrimaryIconName)
+                            .font(.system(size: 15, weight: .black))
+                    }
+                    .foregroundStyle(KapselkiTheme.ink)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(18)
         .frame(width: 330)
@@ -1119,6 +1804,204 @@ private struct KapselkiRaceView: View {
         .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KapselkiTheme.ink.opacity(0.14).ignoresSafeArea())
+    }
+
+    private var finishConfettiLayer: some View {
+        ZStack {
+            ForEach(0..<22, id: \.self) { index in
+                Rectangle()
+                    .fill(tableFinishColor(index))
+                    .frame(width: CGFloat(6 + (index % 3) * 4), height: CGFloat(3 + (index % 2) * 3))
+                    .rotationEffect(.degrees(Double((index * 23) % 88) - 44))
+                    .offset(
+                        x: CGFloat((index % 6) * 54 - 135),
+                        y: CGFloat((index / 6) * 44 - 86)
+                    )
+            }
+        }
+        .opacity(0.72)
+        .allowsHitTesting(false)
+    }
+
+    private func tableFinishColor(_ index: Int) -> Color {
+        [KapselkiTheme.red, KapselkiTheme.blue, KapselkiTheme.yellow, KapselkiTheme.green, KapselkiTheme.orange][index % 5]
+    }
+
+    private func finishPodium(_ result: KapselkiRunResult) -> some View {
+        let first = result.podium.first { $0.place == 1 }
+        let second = result.podium.first { $0.place == 2 }
+        let third = result.podium.first { $0.place == 3 }
+
+        return HStack(alignment: .bottom, spacing: 8) {
+            if let second {
+                podiumEntryView(second, height: 42, avatarSize: 48, color: KapselkiTheme.blue.opacity(0.74))
+            }
+
+            if let first {
+                podiumEntryView(first, height: 58, avatarSize: 62, color: KapselkiTheme.yellow)
+            }
+
+            if let third {
+                podiumEntryView(third, height: 34, avatarSize: 44, color: KapselkiTheme.green.opacity(0.78))
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func podiumEntryView(_ entry: KapselkiPodiumEntry, height: CGFloat, avatarSize: CGFloat, color: Color) -> some View {
+        VStack(spacing: 5) {
+            Image(entry.character.portraitAssetName)
+                .resizable()
+                .scaledToFill()
+                .frame(width: avatarSize, height: avatarSize)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(entry.character.color, lineWidth: entry.isPlayer ? 4 : 3))
+                .shadow(color: .black.opacity(entry.isPlayer ? 0.18 : 0.12), radius: entry.isPlayer ? 8 : 5, x: 0, y: entry.isPlayer ? 4 : 3)
+
+            podiumStep(
+                place: "\(entry.place)",
+                height: height,
+                color: color,
+                label: entry.character.localizedShortName.uppercased()
+            )
+        }
+        .frame(width: 86)
+    }
+
+    private func podiumStep(place: String, height: CGFloat, color: Color, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(label)
+                .font(.system(size: 7, weight: .black, design: .monospaced))
+                .foregroundStyle(KapselkiTheme.ink.opacity(0.60))
+                .lineLimit(1)
+                .minimumScaleFactor(0.60)
+
+            Text(place)
+                .font(.system(size: 18, weight: .black, design: .rounded))
+                .foregroundStyle(KapselkiTheme.ink)
+                .frame(width: 72, height: height)
+                .background(color, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+
+    private func objectiveFinishBadge(_ result: KapselkiRunResult) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: result.objectiveCompleted ? "checkmark.circle.fill" : "circle")
+                .font(.system(size: 14, weight: .black))
+                .foregroundStyle(result.objectiveCompleted ? KapselkiTheme.green : KapselkiTheme.red)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(result.objectiveCompleted ? "CEL ZALICZONY".kText : "CEL NA NASTĘPNY RAZ".kText)
+                    .font(.system(size: 9, weight: .black, design: .monospaced))
+                    .foregroundStyle(KapselkiTheme.ink.opacity(0.58))
+
+                Text(result.objectiveTitle)
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .foregroundStyle(KapselkiTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(9)
+        .background((result.objectiveCompleted ? KapselkiTheme.green : KapselkiTheme.red).opacity(0.15), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var finishContextText: String {
+        switch playMode {
+        case .quick:
+            return quickAttempt < quickAttemptLimit
+                ? KapselkiL10n.pick(pl: "Szybka partyjka: próba \(quickAttempt) z \(quickAttemptLimit)", en: "Quick match: run \(quickAttempt) of \(quickAttemptLimit)")
+                : "Szybka partyjka zakończona. Najlepszy wynik robisz kolejną serią.".kText
+        case .tour:
+            if stageIndex < stageCount - 1 {
+                return KapselkiL10n.pick(pl: "Tour: etap \(stageIndex + 1) z \(stageCount). Następny czeka za rogiem.", en: "Tour: stage \(stageIndex + 1) of \(stageCount). The next one is waiting.")
+            }
+            return "Tour ukończony. To już finał osiedla.".kText
+        case .daily:
+            return "Dzisiejsze wyzwanie możesz poprawiać, aż pstryk będzie idealny.".kText
+        case .master:
+            if stageIndex < stageCount - 1 {
+                return KapselkiL10n.pick(pl: "Mistrz podwórka: runda \(stageIndex + 1) z \(stageCount). Jedziemy dalej.", en: "Backyard champ: round \(stageIndex + 1) of \(stageCount). Keep going.")
+            }
+            return "Seria Mistrza podwórka ukończona.".kText
+        }
+    }
+
+    private var finishPrimaryTitle: String {
+        switch playMode {
+        case .quick:
+            return quickAttempt < quickAttemptLimit
+                ? KapselkiL10n.pick(pl: "PRÓBA \(quickAttempt + 1)/\(quickAttemptLimit)", en: "RUN \(quickAttempt + 1)/\(quickAttemptLimit)")
+                : KapselkiL10n.pick(pl: "3 PRÓBY OD NOWA", en: "RESTART 3 RUNS")
+        case .tour:
+            return stageIndex < stageCount - 1 ? "NASTĘPNY ETAP".kText : "TOUR OD NOWA".kText
+        case .daily:
+            return "POPRAW WYNIK DNIA".kText
+        case .master:
+            return stageIndex < stageCount - 1 ? "NASTĘPNA RUNDA".kText : "SERIA OD NOWA".kText
+        }
+    }
+
+    private var finishPrimaryIconName: String {
+        switch playMode {
+        case .quick:
+            return quickAttempt < quickAttemptLimit ? "forward.fill" : "arrow.clockwise"
+        case .tour:
+            return stageIndex < stageCount - 1 ? "arrow.right" : "arrow.clockwise"
+        case .daily:
+            return "arrow.clockwise"
+        case .master:
+            return stageIndex < stageCount - 1 ? "arrow.right" : "arrow.clockwise"
+        }
+    }
+
+    private func handleFinishPrimaryAction() {
+        switch playMode {
+        case .quick:
+            if quickAttempt < quickAttemptLimit {
+                quickAttempt += 1
+            } else {
+                quickAttempt = 1
+            }
+            controller.resetRun()
+        case .tour:
+            if stageIndex < stageCount - 1 {
+                onAdvanceStage()
+            } else {
+                onRestartSeries()
+            }
+        case .daily:
+            controller.resetRun()
+        case .master:
+            if stageIndex < stageCount - 1 {
+                onAdvanceStage()
+            } else {
+                onRestartSeries()
+            }
+        }
+    }
+
+    private func handleUnlocks(for result: KapselkiRunResult) {
+        switch playMode {
+        case .quick:
+            guard result.medalRank >= 2 else {
+                return
+            }
+            if let name = onUnlockCharacter("neon") {
+                showFeedbackToast(KapselkiL10n.pick(pl: "Odblokowano \(name)!", en: "\(name) unlocked!"))
+            }
+        case .tour:
+            guard stageIndex == stageCount - 1 else {
+                return
+            }
+            if let name = onUnlockCharacter("sprezyna") {
+                showFeedbackToast(KapselkiL10n.pick(pl: "Odblokowano \(name)!", en: "\(name) unlocked!"))
+            }
+        case .daily, .master:
+            return
+        }
     }
 
     private func resultTile(_ value: String, _ label: String) -> some View {

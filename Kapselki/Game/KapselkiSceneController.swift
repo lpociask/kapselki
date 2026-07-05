@@ -14,30 +14,30 @@ enum KapselkiBoard: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .sidewalk:
-            return "Chodnik"
+            return "Chodnik".kText
         case .grass:
-            return "Trawa"
+            return "Trawa".kText
         case .sand:
-            return "Piasek"
+            return "Piasek".kText
         case .schoolyard:
-            return "Boisko"
+            return "Boisko".kText
         case .table:
-            return "Stół"
+            return "Stół".kText
         }
     }
 
     var subtitle: String {
         switch self {
         case .sidewalk:
-            return "szybki ślizg"
+            return "szybki ślizg".kText
         case .grass:
-            return "miękka kontrola"
+            return "miękka kontrola".kText
         case .sand:
-            return "krótki, ciężki ruch"
+            return "krótki, ciężki ruch".kText
         case .schoolyard:
-            return "kreda i zakręty"
+            return "kreda i zakręty".kText
         case .table:
-            return "gładka jazda"
+            return "gładka jazda".kText
         }
     }
 
@@ -125,22 +125,39 @@ struct KapselkiRunResult: Equatable {
     let energy: Int
     let styleScore: Int
     let medalRank: Int
+    let objectiveTitle: String
+    let objectiveCompleted: Bool
+    let podium: [KapselkiPodiumEntry]
 
     var title: String {
         switch medalRank {
         case 3:
-            return "Złoto pod blokiem"
+            return "Złoto pod blokiem".kText
         case 2:
-            return "Srebro na kredzie"
+            return "Srebro na kredzie".kText
         case 1:
-            return "Brązowy pstryk"
+            return "Brązowy pstryk".kText
         default:
-            return "Meta zaliczona"
+            return "Meta zaliczona".kText
         }
     }
 
     var summary: String {
-        "Miejsce \(place) z \(boardSize), \(moves) pstryków, energia \(energy), wyjazdy za kredę \(penalties)."
+        let objective = objectiveCompleted ? "Cel zaliczony.".kText : "Cel jeszcze do poprawy.".kText
+        return KapselkiL10n.pick(
+            pl: "Miejsce \(place) z \(boardSize), \(moves) pstryków, energia \(energy), wyjazdy za kredę \(penalties). \(objective)",
+            en: "Place \(place) of \(boardSize), \(moves) flicks, energy \(energy), off-track \(penalties). \(objective)"
+        )
+    }
+}
+
+struct KapselkiPodiumEntry: Equatable, Identifiable {
+    let place: Int
+    let character: KapselkiCharacter
+    let isPlayer: Bool
+
+    var id: String {
+        "\(place)-\(character.id)"
     }
 }
 
@@ -158,6 +175,9 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         case gum
         case matchbox
         case marble
+        case puddle
+        case ruler
+        case notebook
 
         var drag: Float {
             switch self {
@@ -171,6 +191,12 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
                 return 0.50
             case .marble:
                 return 0.78
+            case .puddle:
+                return 0.92
+            case .ruler:
+                return 0.74
+            case .notebook:
+                return 0.88
             }
         }
 
@@ -186,6 +212,61 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
                 return 0.76
             case .marble:
                 return 1.28
+            case .puddle:
+                return 0.48
+            case .ruler:
+                return 1.10
+            case .notebook:
+                return 0.92
+            }
+        }
+
+        var feedbackText: String {
+            switch self {
+            case .chalk:
+                return "Kreda!".kText
+            case .twig:
+                return "Patyk!".kText
+            case .gum:
+                return "Guma!".kText
+            case .matchbox:
+                return "Pudełko!".kText
+            case .marble:
+                return "Kamyczek!".kText
+            case .puddle:
+                return "Kałuża!".kText
+            case .ruler:
+                return "Linijka!".kText
+            case .notebook:
+                return "Hopka!".kText
+            }
+        }
+    }
+
+    private enum PowerUpKind: CaseIterable {
+        case turbo
+        case spin
+        case energy
+
+        var feedbackText: String {
+            switch self {
+            case .turbo:
+                return "Turbo!"
+            case .spin:
+                return "Super spin!".kText
+            case .energy:
+                return "Energia!".kText
+            }
+        }
+
+        var color: UIColor {
+            switch self {
+            case .turbo:
+                return KapselkiTheme.uiOrange
+            case .spin:
+                return KapselkiTheme.uiBlue
+            case .energy:
+                return KapselkiTheme.uiGreen
             }
         }
     }
@@ -286,10 +367,18 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         let kind: ObstacleKind
     }
 
+    private struct PowerUpSpec {
+        let id: Int
+        let t: Float
+        let lane: Float
+        let radius: Float
+        let kind: PowerUpKind
+    }
+
     let scene = SCNScene()
 
-    @Published private(set) var status = "Dotknij kapsla"
-    @Published private(set) var hint = "Dotknij kapsla, odciągnij palec i puść."
+    @Published private(set) var status = "Dotknij kapsla".kText
+    @Published private(set) var hint = "Dotknij kapsla, odciągnij palec i puść.".kText
     @Published private(set) var moveCount = 0
     @Published private(set) var penaltyCount = 0
     @Published private(set) var energy = 100
@@ -305,6 +394,10 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
     @Published private(set) var penaltyCue = 0
     @Published private(set) var finishCue = 0
     @Published private(set) var isManualCameraMode = false
+    @Published private(set) var feedbackText = ""
+    @Published private(set) var feedbackCue = 0
+    @Published private(set) var objectiveProgressText = ""
+    @Published private(set) var objectiveComplete = false
 
     private let boardNode = SCNNode()
     private let capNode = SCNNode()
@@ -318,18 +411,23 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
     private let capRadius: Float = 0.58
     private let capTouchWorldRadius: Float = 1.55
     private let inputPlaneY: Float = 0.10
-    private let finishTriggerT: Float = 0.985
     private let maxAimDashCount = 7
     private let aimDashBaseLength: Float = 0.42
 
     private var currentBoard: KapselkiBoard = .sidewalk
+    private var playMode: KapselkiPlayMode = .quick
+    private var currentObjective = KapselkiObjective.objective(for: .quick, board: .sidewalk, stageIndex: 0)
     private var playerCharacter = KapselkiCharacter.defaultCharacter
     private var routeShape: RouteShape = .sidewalk
     private var turnPhase: TurnPhase = .playerReady
     private var cap = CapMotion(x: 0, z: -20, vx: 0, vz: 0, spin: 0, yaw: 0)
     private var rivals: [CapMotion] = []
     private var rivalNodes: [SCNNode] = []
+    private var activeRivalCharacters: [KapselkiCharacter] = []
     private var obstacles: [ObstacleSpec] = []
+    private var powerUps: [PowerUpSpec] = []
+    private var powerUpNodes: [SCNNode] = []
+    private var collectedPowerUpIDs = Set<Int>()
     private var aimDashNodes: [SCNNode] = []
     private var aimContactNode: SCNNode?
     private var aimEndNode: SCNNode?
@@ -360,6 +458,7 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
     private var statsPenalties = 0
     private var statsEnergy = 100
     private var statsStyle = 0
+    private var statsPowerUps = 0
 #if DEBUG
     private let shouldAutoFlickOnLaunch = CommandLine.arguments.contains("--kapselki-autoflick-once")
     private var didAutoFlickOnLaunch = false
@@ -370,8 +469,10 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         scene.background.contents = KapselkiTheme.uiSky
     }
 
-    func configure(board: KapselkiBoard, player: KapselkiCharacter) {
+    func configure(board: KapselkiBoard, player: KapselkiCharacter, mode: KapselkiPlayMode, objective: KapselkiObjective) {
         currentBoard = board
+        playMode = mode
+        currentObjective = objective
         playerCharacter = player
         switch board {
         case .sidewalk:
@@ -452,6 +553,9 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         statsPenalties = 0
         statsEnergy = 100
         statsStyle = 0
+        statsPowerUps = 0
+        collectedPowerUpIDs.removeAll()
+        restorePowerUps()
         turnElapsedTime = 0
         lastUpdateTime = 0
         rivalsStarted = false
@@ -469,11 +573,16 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         hideAimGuide()
         publishStats()
         publishProgress()
+        let initialHint = KapselkiL10n.pick(
+            pl: "\(currentObjective.shortTitle). Dotknij kapsla, odciągnij palec i puść.",
+            en: "\(currentObjective.shortTitle). Touch the cap, pull your finger back, and release."
+        )
         publishMain { [weak self] in
             self?.finishResult = nil
-            self?.status = "Twój ruch"
-            self?.hint = "Dotknij kapsla, odciągnij palec i puść."
+            self?.status = "Twój ruch".kText
+            self?.hint = initialHint
             self?.isOffRoute = false
+            self?.feedbackText = ""
         }
         turnPhase = .playerReady
         updateNodes()
@@ -542,20 +651,22 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
 
         let power = min(1, Float(pullLength / 144))
         let control = playerCharacter.control
-        let directionJitter = ((1 - control) * 0.026 + max(0, power - 0.86) * 0.052) * boardJitterMultiplier
+        let characterPower = 1 + (playerCharacter.powerMultiplier - 1) * 1.55
+        let characterSpin = 1 + (playerCharacter.spinMultiplier - 1) * 1.45
+        let directionJitter = ((1 - control) * 0.035 + max(0, power - 0.82) * 0.060) * boardJitterMultiplier
         let direction = vector.normalized.rotated(by: Float.random(in: -directionJitter...directionJitter))
-        let speed = (1.10 + power * 5.95) * boardSpeedMultiplier * playerCharacter.powerMultiplier
+        let speed = (1.10 + power * 5.95) * boardSpeedMultiplier * characterPower
         let contact = contactVector(fromScreen: anchor, screenSize: screenSize)
         let rimDistance = min(1, contact.horizontalLength)
         let rimStrength = max(0, (rimDistance - 0.36) / 0.64)
         let torque = contact.x * direction.z - contact.z * direction.x
         let spinDirection: Float = torque >= 0 ? 1 : -1
-        let spinImpulse = spinDirection * rimStrength * max(0.14, abs(torque)) * (0.55 + power * 2.65) * playerCharacter.spinMultiplier
+        let spinImpulse = spinDirection * rimStrength * max(0.14, abs(torque)) * (0.55 + power * 2.65) * characterSpin
 
         cap.vx = direction.x * speed
         cap.vz = direction.z * speed
         if rimStrength > 0.08 {
-            cap.spin = max(-2.85, min(2.85, cap.spin * 0.16 + spinImpulse + Float.random(in: -0.018...0.018)))
+            cap.spin = max(-3.35, min(3.35, cap.spin * 0.16 + spinImpulse + Float.random(in: -0.018...0.018)))
         } else {
             cap.spin *= 0.08
         }
@@ -624,6 +735,10 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         routeWidth * 0.5
     }
 
+    private var finishT: Float {
+        playMode == .quick ? 0.74 : 0.985
+    }
+
     private var boardSpeedMultiplier: Float {
         switch currentBoard {
         case .sidewalk:
@@ -684,6 +799,9 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         aimNode.childNodes.forEach { $0.removeFromParentNode() }
         dustRoot.childNodes.forEach { $0.removeFromParentNode() }
         rivalNodes = []
+        activeRivalCharacters = []
+        powerUpNodes = []
+        collectedPowerUpIDs.removeAll()
         aimDashNodes = []
         aimContactNode = nil
         aimEndNode = nil
@@ -696,9 +814,11 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         scene.rootNode.addChildNode(dustRoot)
         buildBoard()
         obstacles = obstacleSpecs()
+        powerUps = powerUpSpecs()
         buildRoute()
         buildFinish()
         buildObstacles()
+        buildPowerUps()
         buildCaps()
     }
 
@@ -771,6 +891,8 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         }
 
         addRetroProps()
+        addDioramaProps()
+        addComicBoardOutline()
         addPlaygroundDetails()
     }
 
@@ -951,6 +1073,158 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         addToyCar(side: 1, t: 0.76)
     }
 
+    private func addComicBoardOutline() {
+        let outlineMaterial = material(KapselkiTheme.uiInk.withAlphaComponent(0.52), roughness: 1, transparency: 0.52)
+        let topZ = boardDepth * 0.5 - 0.28
+        let sideX = boardWidth * 0.5 - 0.28
+
+        for z in [-topZ, topZ] {
+            let edge = SCNBox(width: CGFloat(boardWidth - 0.50), height: 0.020, length: 0.050, chamferRadius: 0.010)
+            edge.firstMaterial = outlineMaterial
+            let node = SCNNode(geometry: edge)
+            node.position = SCNVector3(0, 0.096, z)
+            boardNode.addChildNode(node)
+        }
+
+        for x in [-sideX, sideX] {
+            let edge = SCNBox(width: 0.050, height: 0.020, length: CGFloat(boardDepth - 0.50), chamferRadius: 0.010)
+            edge.firstMaterial = outlineMaterial
+            let node = SCNNode(geometry: edge)
+            node.position = SCNVector3(x, 0.096, 0)
+            boardNode.addChildNode(node)
+        }
+
+        let stickers: [(Float, Float, UIColor)] = [
+            (-sideX + 1.10, -topZ + 1.20, KapselkiTheme.uiRed),
+            (sideX - 1.20, -topZ + 1.10, KapselkiTheme.uiYellow),
+            (-sideX + 1.20, topZ - 1.10, KapselkiTheme.uiBlue),
+            (sideX - 1.10, topZ - 1.20, KapselkiTheme.uiGreen)
+        ]
+        for sticker in stickers {
+            addFlatSticker(x: sticker.0, z: sticker.1, color: sticker.2)
+        }
+    }
+
+    private func addDioramaProps() {
+        switch currentBoard {
+        case .sidewalk:
+            addSodaCapPile(side: 1, t: 0.18)
+            addCassetteSticker(side: -1, t: 0.52, color: KapselkiTheme.uiOrange)
+        case .grass:
+            addJuiceBox(side: -1, t: 0.24, color: KapselkiTheme.uiGreen)
+            addSodaCapPile(side: 1, t: 0.66)
+        case .sand:
+            addBucketPatch(side: 1, t: 0.30)
+            addCassetteSticker(side: -1, t: 0.70, color: KapselkiTheme.uiRed)
+        case .schoolyard:
+            addJuiceBox(side: 1, t: 0.20, color: KapselkiTheme.uiYellow)
+            addCassetteSticker(side: -1, t: 0.58, color: KapselkiTheme.uiBlue)
+        case .table:
+            addCassetteSticker(side: 1, t: 0.28, color: KapselkiTheme.uiRed)
+            addJuiceBox(side: -1, t: 0.66, color: KapselkiTheme.uiOrange)
+        }
+    }
+
+    private func addFlatSticker(x: Float, z: Float, color: UIColor) {
+        let sticker = SCNBox(width: 0.70, height: 0.014, length: 0.32, chamferRadius: 0.028)
+        sticker.firstMaterial = material(color.withAlphaComponent(0.82), roughness: 1, transparency: 0.82)
+        let node = SCNNode(geometry: sticker)
+        node.position = SCNVector3(x, 0.112, z)
+        node.eulerAngles.y = Float.random(in: -0.55...0.55)
+        boardNode.addChildNode(node)
+    }
+
+    private func addCassetteSticker(side: Float, t: Float, color: UIColor) {
+        let root = SCNNode()
+        root.position = propPosition(side: side, t: t, offset: 1.82)
+        root.eulerAngles.y = Float.random(in: -0.75...0.75)
+
+        let base = SCNBox(width: 1.22, height: 0.016, length: 0.72, chamferRadius: 0.040)
+        base.firstMaterial = material(color.withAlphaComponent(0.88), roughness: 1, transparency: 0.88)
+        root.addChildNode(SCNNode(geometry: base))
+
+        for x in [-0.32 as Float, 0.32 as Float] {
+            let hole = SCNCylinder(radius: 0.11, height: 0.018)
+            hole.radialSegmentCount = 18
+            hole.firstMaterial = material(KapselkiTheme.uiPaper.withAlphaComponent(0.80), roughness: 1, transparency: 0.80)
+            let node = SCNNode(geometry: hole)
+            node.position = SCNVector3(x, 0.020, 0)
+            root.addChildNode(node)
+        }
+
+        let label = SCNBox(width: 0.78, height: 0.012, length: 0.15, chamferRadius: 0.012)
+        label.firstMaterial = material(KapselkiTheme.uiInk.withAlphaComponent(0.38), roughness: 1, transparency: 0.38)
+        let labelNode = SCNNode(geometry: label)
+        labelNode.position = SCNVector3(0, 0.026, -0.22)
+        root.addChildNode(labelNode)
+        boardNode.addChildNode(root)
+    }
+
+    private func addJuiceBox(side: Float, t: Float, color: UIColor) {
+        let root = SCNNode()
+        root.position = propPosition(side: side, t: t, offset: 1.72)
+        root.eulerAngles.y = Float.random(in: -0.45...0.45)
+
+        let box = SCNBox(width: 0.56, height: 0.72, length: 0.42, chamferRadius: 0.035)
+        box.firstMaterial = material(color, roughness: 1)
+        let boxNode = SCNNode(geometry: box)
+        boxNode.position.y = 0.34
+        root.addChildNode(boxNode)
+
+        let front = SCNBox(width: 0.42, height: 0.014, length: 0.22, chamferRadius: 0.012)
+        front.firstMaterial = material(KapselkiTheme.uiPaper.withAlphaComponent(0.78), roughness: 1, transparency: 0.78)
+        let frontNode = SCNNode(geometry: front)
+        frontNode.position = SCNVector3(0, 0.44, -0.216)
+        root.addChildNode(frontNode)
+
+        let straw = SCNBox(width: 0.035, height: 0.50, length: 0.035, chamferRadius: 0.012)
+        straw.firstMaterial = material(KapselkiTheme.uiChalk, roughness: 1)
+        let strawNode = SCNNode(geometry: straw)
+        strawNode.position = SCNVector3(0.16, 0.88, -0.03)
+        strawNode.eulerAngles.z = 0.28
+        root.addChildNode(strawNode)
+        boardNode.addChildNode(root)
+    }
+
+    private func addSodaCapPile(side: Float, t: Float) {
+        let root = SCNNode()
+        root.position = propPosition(side: side, t: t, offset: 1.64)
+        root.eulerAngles.y = Float.random(in: -0.55...0.55)
+        let colors = [KapselkiTheme.uiRed, KapselkiTheme.uiBlue, KapselkiTheme.uiYellow]
+
+        for index in 0..<3 {
+            let cap = SCNCylinder(radius: 0.18, height: 0.060)
+            cap.radialSegmentCount = 18
+            cap.firstMaterial = material(colors[index % colors.count], roughness: 1)
+            let node = SCNNode(geometry: cap)
+            node.position = SCNVector3(Float(index - 1) * 0.22, 0.030 + Float(index) * 0.012, Float.random(in: -0.08...0.08))
+            node.eulerAngles.y = Float(index) * 0.50
+            root.addChildNode(node)
+        }
+        boardNode.addChildNode(root)
+    }
+
+    private func addBucketPatch(side: Float, t: Float) {
+        let root = SCNNode()
+        root.position = propPosition(side: side, t: t, offset: 1.74)
+        root.eulerAngles.y = Float.random(in: -0.45...0.45)
+
+        let bucket = SCNCylinder(radius: 0.32, height: 0.34)
+        bucket.radialSegmentCount = 18
+        bucket.firstMaterial = material(KapselkiTheme.uiBlue.withAlphaComponent(0.86), roughness: 1, transparency: 0.86)
+        let node = SCNNode(geometry: bucket)
+        node.position.y = 0.17
+        root.addChildNode(node)
+
+        let rim = SCNCylinder(radius: 0.35, height: 0.040)
+        rim.radialSegmentCount = 18
+        rim.firstMaterial = material(KapselkiTheme.uiYellow, roughness: 1)
+        let rimNode = SCNNode(geometry: rim)
+        rimNode.position.y = 0.35
+        root.addChildNode(rimNode)
+        boardNode.addChildNode(root)
+    }
+
     private func addChalkBox(side: Float, t: Float) {
         let root = SCNNode()
         root.position = propPosition(side: side, t: t, offset: 1.55)
@@ -1091,8 +1365,8 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
     }
 
     private func buildFinish() {
-        let finishPoint = routePoint(t: 0.985)
-        let tangent = routeTangent(t: 0.985)
+        let finishPoint = routePoint(t: finishT)
+        let tangent = routeTangent(t: finishT)
         let normal = SCNVector3(-tangent.z, 0, tangent.x)
         let angle = atan2(tangent.x, tangent.z)
         let squareStep = routeWidth / 10
@@ -1113,39 +1387,51 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
     }
 
     private func obstacleSpecs() -> [ObstacleSpec] {
+        let specs: [ObstacleSpec]
         switch currentBoard {
         case .sidewalk:
-            return [
+            specs = [
                 ObstacleSpec(t: 0.22, lane: routeHalfWidth * 0.45, radius: 0.34, kind: .matchbox),
+                ObstacleSpec(t: 0.34, lane: -routeHalfWidth * 0.52, radius: 0.30, kind: .ruler),
                 ObstacleSpec(t: 0.48, lane: -routeHalfWidth * 0.28, radius: 0.25, kind: .gum),
+                ObstacleSpec(t: 0.60, lane: routeHalfWidth * 0.10, radius: 0.44, kind: .notebook),
                 ObstacleSpec(t: 0.72, lane: routeHalfWidth * 0.38, radius: 0.22, kind: .marble)
             ]
         case .grass:
-            return [
+            specs = [
                 ObstacleSpec(t: 0.28, lane: -routeHalfWidth * 0.40, radius: 0.31, kind: .twig),
+                ObstacleSpec(t: 0.40, lane: routeHalfWidth * 0.12, radius: 0.44, kind: .puddle),
                 ObstacleSpec(t: 0.52, lane: routeHalfWidth * 0.34, radius: 0.34, kind: .chalk),
+                ObstacleSpec(t: 0.64, lane: -routeHalfWidth * 0.50, radius: 0.34, kind: .gum),
                 ObstacleSpec(t: 0.77, lane: -routeHalfWidth * 0.20, radius: 0.30, kind: .twig)
             ]
         case .sand:
-            return [
+            specs = [
                 ObstacleSpec(t: 0.25, lane: routeHalfWidth * 0.30, radius: 0.35, kind: .chalk),
+                ObstacleSpec(t: 0.39, lane: -routeHalfWidth * 0.04, radius: 0.42, kind: .notebook),
                 ObstacleSpec(t: 0.54, lane: -routeHalfWidth * 0.36, radius: 0.42, kind: .matchbox),
+                ObstacleSpec(t: 0.67, lane: routeHalfWidth * 0.52, radius: 0.30, kind: .ruler),
                 ObstacleSpec(t: 0.80, lane: routeHalfWidth * 0.18, radius: 0.25, kind: .marble)
             ]
         case .schoolyard:
-            return [
+            specs = [
                 ObstacleSpec(t: 0.18, lane: -routeHalfWidth * 0.30, radius: 0.28, kind: .chalk),
+                ObstacleSpec(t: 0.31, lane: routeHalfWidth * 0.04, radius: 0.31, kind: .ruler),
                 ObstacleSpec(t: 0.43, lane: routeHalfWidth * 0.42, radius: 0.22, kind: .marble),
+                ObstacleSpec(t: 0.55, lane: -routeHalfWidth * 0.08, radius: 0.44, kind: .puddle),
                 ObstacleSpec(t: 0.66, lane: -routeHalfWidth * 0.42, radius: 0.30, kind: .chalk),
                 ObstacleSpec(t: 0.84, lane: routeHalfWidth * 0.12, radius: 0.28, kind: .gum)
             ]
         case .table:
-            return [
+            specs = [
                 ObstacleSpec(t: 0.24, lane: routeHalfWidth * 0.34, radius: 0.35, kind: .matchbox),
+                ObstacleSpec(t: 0.36, lane: -routeHalfWidth * 0.08, radius: 0.36, kind: .ruler),
                 ObstacleSpec(t: 0.50, lane: -routeHalfWidth * 0.34, radius: 0.22, kind: .marble),
+                ObstacleSpec(t: 0.62, lane: routeHalfWidth * 0.48, radius: 0.38, kind: .notebook),
                 ObstacleSpec(t: 0.74, lane: routeHalfWidth * 0.24, radius: 0.31, kind: .chalk)
             ]
         }
+        return specs.filter { $0.t < finishT - 0.035 }
     }
 
     private func buildObstacles() {
@@ -1155,6 +1441,126 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
             root.position = SCNVector3(position.x, 0.092, position.z)
             root.eulerAngles.y = atan2(routeTangent(t: spec.t).x, routeTangent(t: spec.t).z) + Float.random(in: -0.6...0.6)
             boardNode.addChildNode(root)
+        }
+    }
+
+    private func powerUpSpecs() -> [PowerUpSpec] {
+        let base: [PowerUpSpec]
+        switch currentBoard {
+        case .sidewalk:
+            base = [
+                PowerUpSpec(id: 0, t: 0.26, lane: -routeHalfWidth * 0.18, radius: 0.34, kind: .turbo),
+                PowerUpSpec(id: 1, t: 0.46, lane: routeHalfWidth * 0.30, radius: 0.32, kind: .energy),
+                PowerUpSpec(id: 2, t: 0.64, lane: -routeHalfWidth * 0.42, radius: 0.32, kind: .spin)
+            ]
+        case .grass:
+            base = [
+                PowerUpSpec(id: 0, t: 0.30, lane: routeHalfWidth * 0.34, radius: 0.34, kind: .energy),
+                PowerUpSpec(id: 1, t: 0.52, lane: -routeHalfWidth * 0.22, radius: 0.32, kind: .spin),
+                PowerUpSpec(id: 2, t: 0.70, lane: routeHalfWidth * 0.12, radius: 0.34, kind: .turbo)
+            ]
+        case .sand:
+            base = [
+                PowerUpSpec(id: 0, t: 0.27, lane: -routeHalfWidth * 0.30, radius: 0.34, kind: .energy),
+                PowerUpSpec(id: 1, t: 0.49, lane: routeHalfWidth * 0.18, radius: 0.32, kind: .turbo),
+                PowerUpSpec(id: 2, t: 0.67, lane: -routeHalfWidth * 0.04, radius: 0.32, kind: .spin)
+            ]
+        case .schoolyard:
+            base = [
+                PowerUpSpec(id: 0, t: 0.24, lane: routeHalfWidth * 0.40, radius: 0.32, kind: .spin),
+                PowerUpSpec(id: 1, t: 0.48, lane: -routeHalfWidth * 0.30, radius: 0.34, kind: .turbo),
+                PowerUpSpec(id: 2, t: 0.72, lane: routeHalfWidth * 0.08, radius: 0.32, kind: .energy)
+            ]
+        case .table:
+            base = [
+                PowerUpSpec(id: 0, t: 0.25, lane: -routeHalfWidth * 0.36, radius: 0.32, kind: .turbo),
+                PowerUpSpec(id: 1, t: 0.44, lane: routeHalfWidth * 0.24, radius: 0.32, kind: .spin),
+                PowerUpSpec(id: 2, t: 0.66, lane: -routeHalfWidth * 0.14, radius: 0.34, kind: .energy)
+            ]
+        }
+        return base.filter { $0.t < finishT - 0.045 }
+    }
+
+    private func buildPowerUps() {
+        for spec in powerUps {
+            let root = makePowerUp(spec)
+            let position = routePosition(t: spec.t, lane: spec.lane)
+            root.position = SCNVector3(position.x, 0.128, position.z)
+            root.eulerAngles.y = atan2(routeTangent(t: spec.t).x, routeTangent(t: spec.t).z)
+            boardNode.addChildNode(root)
+            powerUpNodes.append(root)
+        }
+    }
+
+    private func makePowerUp(_ spec: PowerUpSpec) -> SCNNode {
+        let root = SCNNode()
+        root.name = "powerup-\(spec.id)"
+
+        let shadow = SCNCylinder(radius: CGFloat(spec.radius * 1.08), height: 0.006)
+        shadow.radialSegmentCount = 24
+        shadow.firstMaterial = material(UIColor.black.withAlphaComponent(0.16), roughness: 1, transparency: 0.16)
+        let shadowNode = SCNNode(geometry: shadow)
+        shadowNode.position.y = -0.060
+        shadowNode.scale = SCNVector3(1.18, 1, 0.72)
+        root.addChildNode(shadowNode)
+
+        let badge = SCNCylinder(radius: CGFloat(spec.radius), height: 0.055)
+        badge.radialSegmentCount = 6
+        badge.firstMaterial = material(spec.kind.color, roughness: 1)
+        let badgeNode = SCNNode(geometry: badge)
+        badgeNode.position.y = 0.012
+        root.addChildNode(badgeNode)
+
+        let iconMaterial = material(KapselkiTheme.uiPaper, roughness: 1)
+        switch spec.kind {
+        case .turbo:
+            let bolt = SCNBox(width: CGFloat(spec.radius * 0.38), height: 0.018, length: CGFloat(spec.radius * 1.24), chamferRadius: 0.015)
+            bolt.firstMaterial = iconMaterial
+            let node = SCNNode(geometry: bolt)
+            node.position.y = 0.055
+            node.eulerAngles.y = -0.42
+            root.addChildNode(node)
+        case .spin:
+            for angle in [0 as Float, 2.10, 4.20] {
+                let dash = SCNBox(width: CGFloat(spec.radius * 0.68), height: 0.018, length: 0.045, chamferRadius: 0.012)
+                dash.firstMaterial = iconMaterial
+                let node = SCNNode(geometry: dash)
+                node.position = SCNVector3(cos(angle) * spec.radius * 0.24, 0.055, sin(angle) * spec.radius * 0.24)
+                node.eulerAngles.y = angle + 0.55
+                root.addChildNode(node)
+            }
+        case .energy:
+            let vertical = SCNBox(width: CGFloat(spec.radius * 0.25), height: 0.018, length: CGFloat(spec.radius * 0.92), chamferRadius: 0.012)
+            vertical.firstMaterial = iconMaterial
+            let verticalNode = SCNNode(geometry: vertical)
+            verticalNode.position.y = 0.055
+            root.addChildNode(verticalNode)
+
+            let horizontal = SCNBox(width: CGFloat(spec.radius * 0.76), height: 0.019, length: CGFloat(spec.radius * 0.24), chamferRadius: 0.012)
+            horizontal.firstMaterial = iconMaterial
+            let horizontalNode = SCNNode(geometry: horizontal)
+            horizontalNode.position.y = 0.058
+            root.addChildNode(horizontalNode)
+        }
+
+        root.runAction(.repeatForever(.sequence([
+            .moveBy(x: 0, y: 0.055, z: 0, duration: 0.42),
+            .moveBy(x: 0, y: -0.055, z: 0, duration: 0.42)
+        ])))
+        return root
+    }
+
+    private func restorePowerUps() {
+        for node in powerUpNodes {
+            node.removeAllActions()
+            node.isHidden = false
+            node.opacity = 1
+            node.scale = SCNVector3(1, 1, 1)
+            node.position.y = 0.128
+            node.runAction(.repeatForever(.sequence([
+                .moveBy(x: 0, y: 0.055, z: 0, duration: 0.42),
+                .moveBy(x: 0, y: -0.055, z: 0, duration: 0.42)
+            ])))
         }
     }
 
@@ -1210,6 +1616,48 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
             let node = SCNNode(geometry: marble)
             node.position.y = spec.radius
             root.addChildNode(node)
+        case .puddle:
+            let puddle = SCNSphere(radius: CGFloat(spec.radius))
+            puddle.segmentCount = 24
+            puddle.firstMaterial = material(UIColor(red: 0.33, green: 0.64, blue: 0.88, alpha: 0.50), roughness: 0.18, transparency: 0.50)
+            let node = SCNNode(geometry: puddle)
+            node.scale = SCNVector3(1.65, 0.035, 1.05)
+            node.position.y = 0.018
+            root.addChildNode(node)
+
+            let shine = SCNBox(width: CGFloat(spec.radius * 0.92), height: 0.008, length: CGFloat(spec.radius * 0.12), chamferRadius: 0.014)
+            shine.firstMaterial = material(UIColor.white.withAlphaComponent(0.38), roughness: 0.30, transparency: 0.38)
+            let shineNode = SCNNode(geometry: shine)
+            shineNode.position = SCNVector3(-spec.radius * 0.10, 0.048, -spec.radius * 0.16)
+            shineNode.eulerAngles.y = 0.35
+            root.addChildNode(shineNode)
+        case .ruler:
+            let ruler = SCNBox(width: CGFloat(spec.radius * 3.4), height: 0.040, length: CGFloat(spec.radius * 0.42), chamferRadius: 0.025)
+            ruler.firstMaterial = material(KapselkiTheme.uiYellow, roughness: 0.76)
+            let rulerNode = SCNNode(geometry: ruler)
+            rulerNode.position.y = 0.030
+            root.addChildNode(rulerNode)
+
+            for index in 0..<5 {
+                let tick = SCNBox(width: 0.018, height: 0.008, length: CGFloat(spec.radius * 0.28), chamferRadius: 0.004)
+                tick.firstMaterial = material(KapselkiTheme.uiInk.withAlphaComponent(0.40), roughness: 1, transparency: 0.40)
+                let tickNode = SCNNode(geometry: tick)
+                tickNode.position = SCNVector3(-spec.radius * 1.25 + Float(index) * spec.radius * 0.62, 0.056, 0)
+                root.addChildNode(tickNode)
+            }
+        case .notebook:
+            let page = SCNBox(width: CGFloat(spec.radius * 2.7), height: 0.055, length: CGFloat(spec.radius * 1.70), chamferRadius: 0.045)
+            page.firstMaterial = material(UIColor(red: 0.95, green: 0.90, blue: 0.68, alpha: 1), roughness: 0.90)
+            let pageNode = SCNNode(geometry: page)
+            pageNode.position.y = 0.044
+            pageNode.eulerAngles.x = -0.05
+            root.addChildNode(pageNode)
+
+            let stripe = SCNBox(width: CGFloat(spec.radius * 2.38), height: 0.010, length: 0.035, chamferRadius: 0.006)
+            stripe.firstMaterial = material(KapselkiTheme.uiBlue.withAlphaComponent(0.38), roughness: 1, transparency: 0.38)
+            let stripeNode = SCNNode(geometry: stripe)
+            stripeNode.position = SCNVector3(0, 0.080, -spec.radius * 0.20)
+            root.addChildNode(stripeNode)
         }
 
         return root
@@ -1217,8 +1665,12 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
 
     private func buildCaps() {
         capNode.addChildNode(makeCap(character: playerCharacter, isPlayer: true))
-        let rivalCharacters = KapselkiCharacter.roster.filter { $0.id != playerCharacter.id }.prefix(4)
-        for character in rivalCharacters {
+        activeRivalCharacters = Array(
+            KapselkiCharacter.roster
+                .filter { $0.id != playerCharacter.id && $0.unlockRequirement == nil }
+                .prefix(4)
+        )
+        for character in activeRivalCharacters {
             let node = makeCap(character: character, isPlayer: false)
             scene.rootNode.addChildNode(node)
             rivalNodes.append(node)
@@ -1501,8 +1953,10 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         }
 
         let side = SCNVector3(-velocity.z, 0, velocity.x).normalized
-        velocity = velocity + side * (motion.spin * currentBoard.slip * speed * 0.14 * dt)
-        let friction = currentBoard.friction * (isPlayer ? 1.0 : 1.06)
+        let spinSlip = isPlayer ? 1 + (playerCharacter.spinMultiplier - 1) * 0.72 : 1
+        velocity = velocity + side * (motion.spin * currentBoard.slip * spinSlip * speed * 0.14 * dt)
+        let playerGlide = isPlayer ? clamped(1.02 - (playerCharacter.control - 0.82) * 0.22 - (playerCharacter.spinMultiplier - 1) * 0.08, min: 0.88, max: 1.10) : 1.06
+        let friction = currentBoard.friction * playerGlide
         let nextSpeed = max(0, speed - friction * (0.34 + min(speed, 7.0) * 0.024) * dt)
         velocity = velocity.normalized * nextSpeed
 
@@ -1513,6 +1967,9 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         motion.yaw += motion.spin * dt * 1.32
         motion.spin *= max(0.82, 1 - dt * 0.55)
 
+        if isPlayer {
+            resolvePowerUpCollections(for: &motion)
+        }
         resolveObstacleCollisions(for: &motion, isPlayer: isPlayer)
         clampToBoard(&motion)
 
@@ -1527,24 +1984,82 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         let playerLane = playerOffRouteState ? 0 : laneOffset(at: playerContact, x: cap.x, z: cap.z)
 
         for index in rivals.indices {
+            let character = activeRivalCharacters.indices.contains(index) ? activeRivalCharacters[index] : KapselkiCharacter.defaultCharacter
+            let aggression = clamped(0.92 + (character.powerMultiplier - 1) * 1.55, min: 0.82, max: 1.22)
+            let control = clamped(character.control, min: 0.72, max: 1.08)
+            let spinSkill = clamped(character.spinMultiplier, min: 0.72, max: 1.28)
             let current = nearestRouteContact(x: rivals[index].x, z: rivals[index].z)
             let gap = playerContact.t - current.t
-            let attack = gap > 0 ? min(0.050, gap * 0.42) : max(-0.010, gap * 0.10)
-            let targetT = clamped(current.t + 0.090 + Float(index) * 0.008 + attack + Float.random(in: -0.012...0.014), min: 0.06, max: 0.965)
+            let attack = gap > 0 ? min(0.060, gap * 0.42 * aggression) : max(-0.014, gap * 0.10)
+            let targetT = clamped(current.t + 0.086 + Float(index) * 0.008 + attack + Float.random(in: -0.010...0.016) / control, min: 0.06, max: min(0.965, finishT - 0.020))
             let laneLimit = routeHalfWidth * 0.82
-            let tacticalLane = clamped(playerLane + (index.isMultiple(of: 2) ? 0.35 : -0.35), min: -laneLimit, max: laneLimit)
+            let tacticalLane = clamped(playerLane + (index.isMultiple(of: 2) ? 0.35 : -0.35) * aggression, min: -laneLimit, max: laneLimit)
             let fallbackLane = clamped((Float(index) - 1.5) * routeHalfWidth * 0.25, min: -laneLimit, max: laneLimit)
-            let lane = Bool.random() ? tacticalLane : fallbackLane
+            let laneNoise = Float.random(in: -0.20...0.20) * (1.18 - control)
+            let tacticalChance = clamped(0.48 + (aggression - 0.92) * 0.40, min: 0.34, max: 0.68)
+            let lane = (Float.random(in: 0...1) < tacticalChance ? tacticalLane : fallbackLane) + laneNoise
             let target = routePosition(t: targetT, lane: lane)
             let toTarget = SCNVector3(target.x - rivals[index].x, 0, target.z - rivals[index].z)
             let distance = max(0.1, toTarget.horizontalLength)
             let direction = toTarget.normalized
-            let speed = min(5.25, max(1.55, distance * 0.96 + 0.95)) * (0.92 + Float(index) * 0.045) * boardSpeedMultiplier
+            let speed = min(5.55, max(1.50, distance * 0.94 + 0.95)) * (0.90 + Float(index) * 0.040) * boardSpeedMultiplier * aggression
 
             rivals[index].vx = direction.x * speed
             rivals[index].vz = direction.z * speed
-            rivals[index].spin = (lane >= 0 ? 1 : -1) * Float.random(in: 0.16...0.56)
+            rivals[index].spin = (lane >= 0 ? 1 : -1) * Float.random(in: 0.18...0.62) * spinSkill
         }
+    }
+
+    private func resolvePowerUpCollections(for motion: inout CapMotion) {
+        for (index, spec) in powerUps.enumerated() where !collectedPowerUpIDs.contains(spec.id) {
+            let point = routePosition(t: spec.t, lane: spec.lane)
+            let dx = motion.x - point.x
+            let dz = motion.z - point.z
+            let distance = sqrt(dx * dx + dz * dz)
+            guard distance < capRadius + spec.radius * 1.05 else {
+                continue
+            }
+
+            collectedPowerUpIDs.insert(spec.id)
+            statsPowerUps += 1
+            applyPowerUp(spec.kind, to: &motion)
+            publishStats()
+            if powerUpNodes.indices.contains(index) {
+                collectPowerUpNode(powerUpNodes[index])
+            }
+            publishMain { [weak self] in
+                self?.hitCue += 1
+            }
+            flashFeedback(spec.kind.feedbackText)
+            emitPowerUpFlash(at: SCNVector3(point.x, 0.22, point.z), color: spec.kind.color)
+        }
+    }
+
+    private func applyPowerUp(_ kind: PowerUpKind, to motion: inout CapMotion) {
+        switch kind {
+        case .turbo:
+            motion.vx *= 1.20
+            motion.vz *= 1.20
+            statsStyle = min(999, statsStyle + 10)
+        case .spin:
+            let spinDirection: Float = motion.spin >= 0 ? 1 : -1
+            motion.spin += spinDirection * 0.95 * playerCharacter.spinMultiplier
+            statsStyle = min(999, statsStyle + 8)
+        case .energy:
+            statsEnergy = min(100, statsEnergy + 14)
+            statsStyle = min(999, statsStyle + 5)
+        }
+    }
+
+    private func collectPowerUpNode(_ node: SCNNode) {
+        node.removeAllActions()
+        node.runAction(.sequence([
+            .group([
+                .scale(to: 1.75, duration: 0.18),
+                .fadeOut(duration: 0.18)
+            ]),
+            .hide()
+        ]))
     }
 
     private func resolveObstacleCollisions(for motion: inout CapMotion, isPlayer: Bool) {
@@ -1569,15 +2084,36 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
                 motion.vx -= nx * intoObstacle * spec.kind.bounce
                 motion.vz -= nz * intoObstacle * spec.kind.bounce
             }
-            motion.vx *= spec.kind.drag
-            motion.vz *= spec.kind.drag
-            motion.spin += (nx * motion.vz - nz * motion.vx) * (isPlayer ? 0.44 : 0.28)
+            let controlRecovery = isPlayer ? clamped(0.86 + playerCharacter.control * 0.17, min: 0.94, max: 1.03) : 1
+            motion.vx *= spec.kind.drag * controlRecovery
+            motion.vz *= spec.kind.drag * controlRecovery
+
+            switch spec.kind {
+            case .puddle:
+                let slip = Float.random(in: -0.55...0.55) * (isPlayer ? playerCharacter.spinMultiplier : 1)
+                motion.spin += slip
+                let side = SCNVector3(-nz, 0, nx)
+                motion.vx += side.x * slip * 0.18
+                motion.vz += side.z * slip * 0.18
+            case .notebook:
+                motion.vx *= 1.08
+                motion.vz *= 1.08
+                if isPlayer {
+                    statsStyle = min(999, statsStyle + 7)
+                    publishStats()
+                }
+            case .ruler:
+                motion.spin += (nx * motion.vz - nz * motion.vx) * (isPlayer ? 0.68 : 0.34)
+            default:
+                motion.spin += (nx * motion.vz - nz * motion.vx) * (isPlayer ? 0.44 * playerCharacter.spinMultiplier : 0.28)
+            }
 
             if isPlayer, impactCooldown <= 0 {
                 impactCooldown = 0.20
                 publishMain { [weak self] in
                     self?.hitCue += 1
                 }
+                flashFeedback(spec.kind.feedbackText)
                 emitImpactFlash(at: SCNVector3(obstacle.x, 0.16, obstacle.z))
             }
         }
@@ -1692,14 +2228,21 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
     private func recordPlayerFlick(power: Float, rimStrength: Float) {
         statsMoves += 1
         hasPenaltyThisTurn = false
-        let energyCost = Int((7 + power * 16 + currentBoard.friction * 1.2).rounded())
+        let energyCost = Int(((7 + power * 16 + currentBoard.friction * 1.2) * clamped(1.08 - playerCharacter.control * 0.15 + max(0, playerCharacter.powerMultiplier - 1) * 0.20, min: 0.84, max: 1.16)).rounded())
         statsEnergy = max(0, statsEnergy - energyCost)
         let precisionBonus = max(0, 1 - abs(power - 0.62) * 1.25)
         let spinBonus = rimStrength > 0.35 ? rimStrength * 5 : 0
-        statsStyle = min(999, statsStyle + Int((5 + precisionBonus * 9 + spinBonus).rounded()))
+        statsStyle = min(999, statsStyle + Int((5 + precisionBonus * 9 + spinBonus * playerCharacter.spinMultiplier).rounded()))
         publishStats()
         publishMain { [weak self] in
             self?.flickCue += 1
+        }
+        if power > 0.91 {
+            flashFeedback("Petarda!".kText)
+        } else if rimStrength > 0.55 {
+            flashFeedback("Podkręcony!".kText)
+        } else if precisionBonus > 0.88 {
+            flashFeedback("Czysty pstryk!".kText)
         }
     }
 
@@ -1710,12 +2253,14 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
 
         hasPenaltyThisTurn = true
         statsPenalties += 1
-        statsEnergy = max(0, statsEnergy - 8)
-        statsStyle = max(0, statsStyle - 11)
+        let energyLoss = Int((8 * clamped(1.16 - playerCharacter.control * 0.22, min: 0.78, max: 1.08)).rounded())
+        statsEnergy = max(0, statsEnergy - energyLoss)
+        statsStyle = max(0, statsStyle - Int((11 * clamped(1.12 - playerCharacter.control * 0.18, min: 0.76, max: 1.08)).rounded()))
         publishStats()
         publishMain { [weak self] in
             self?.penaltyCue += 1
         }
+        flashFeedback(playerCharacter.control > 0.92 ? "Uratowane!".kText : "Kreda!".kText)
         emitOffRouteDust(at: SCNVector3(cap.x, 0.13, cap.z), outward: contact.outward)
     }
 
@@ -1725,7 +2270,7 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         }
 
         let contact = nearestRouteContact(x: cap.x, z: cap.z)
-        guard isRouteLegal(contact), playerLegalProgressT >= finishTriggerT else {
+        guard isRouteLegal(contact), playerLegalProgressT >= finishT else {
             return false
         }
 
@@ -1733,16 +2278,42 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         cachedPlayerContact = contact
         stopAllCaps()
         statsStyle = min(999, statsStyle + max(12, 42 - statsPenalties * 7))
+        let objectiveCompleted = currentObjective.isComplete(
+            moves: statsMoves,
+            penalties: statsPenalties,
+            energy: statsEnergy,
+            style: statsStyle,
+            powerUps: statsPowerUps
+        )
+        if objectiveCompleted {
+            statsStyle = min(999, statsStyle + 18)
+        }
         publishStats()
         setTurnPhase(.finished)
 
-        let place = min(
-            rivals.count + 1,
-            rivals.indices.filter { index in
-                let progress = rivalLegalProgressT.indices.contains(index) ? rivalLegalProgressT[index] : nearestRouteContact(x: rivals[index].x, z: rivals[index].z).t
-                return progress >= playerLegalProgressT
-            }.count + 1
-        )
+        var standings: [(character: KapselkiCharacter, progress: Float, isPlayer: Bool)] = [
+            (playerCharacter, playerLegalProgressT, true)
+        ]
+        let fallbackRival = KapselkiCharacter.roster.first { $0.id != playerCharacter.id } ?? playerCharacter
+        for index in rivals.indices {
+            let progress = rivalLegalProgressT.indices.contains(index) ? rivalLegalProgressT[index] : nearestRouteContact(x: rivals[index].x, z: rivals[index].z).t
+            let character = activeRivalCharacters.indices.contains(index) ? activeRivalCharacters[index] : fallbackRival
+            standings.append((character, progress, false))
+        }
+        let rankedStandings = standings.sorted { lhs, rhs in
+            if abs(lhs.progress - rhs.progress) < 0.0001 {
+                return lhs.isPlayer && !rhs.isPlayer
+            }
+            return lhs.progress > rhs.progress
+        }
+        let place = min(rivals.count + 1, (rankedStandings.firstIndex { $0.isPlayer } ?? 0) + 1)
+        let podium = rankedStandings.prefix(3).enumerated().map { index, entry in
+            KapselkiPodiumEntry(
+                place: index + 1,
+                character: entry.character,
+                isPlayer: entry.isPlayer
+            )
+        }
         let medalRank: Int
         if statsPenalties == 0, statsMoves <= 10, statsStyle >= 105 {
             medalRank = 3
@@ -1760,11 +2331,16 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
             penalties: statsPenalties,
             energy: statsEnergy,
             styleScore: statsStyle,
-            medalRank: medalRank
+            medalRank: medalRank,
+            objectiveTitle: currentObjective.title,
+            objectiveCompleted: objectiveCompleted,
+            podium: podium
         )
         publishMain { [weak self] in
             self?.finishResult = result
             self?.finishCue += 1
+            self?.feedbackText = medalRank >= 2 ? "Meta z klasą!".kText : "Meta!".kText
+            self?.feedbackCue += 1
         }
         return true
     }
@@ -1785,17 +2361,17 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         let nextHint: String
         switch phase {
         case .playerReady:
-            text = playerOffRouteState ? "Poza trasą" : "Twój ruch"
-            nextHint = playerOffRouteState ? "Wróć kapslem na kredę jednym spokojnym pstrykiem." : "Dotknij kapsla, odciągnij palec i puść."
+            text = playerOffRouteState ? "Poza trasą".kText : "Twój ruch".kText
+            nextHint = playerOffRouteState ? "Wróć kapslem na kredę jednym spokojnym pstrykiem.".kText : KapselkiL10n.pick(pl: "Cel: \(currentObjective.shortTitle). Pstrykaj czysto.", en: "Goal: \(currentObjective.shortTitle). Flick clean.")
         case .playerMoving:
-            text = playerOffRouteState ? "Poza trasą" : "Ślizg kapsla"
-            nextHint = "Patrz na spin i kredową linię."
+            text = playerOffRouteState ? "Poza trasą".kText : "Ślizg kapsla".kText
+            nextHint = "Patrz na spin, przeszkody i kredową linię.".kText
         case .rivalsMoving:
-            text = "Rywale pstrykają"
-            nextHint = "Za chwilę twój ruch."
+            text = "Rywale pstrykają".kText
+            nextHint = "Za chwilę twój ruch.".kText
         case .finished:
-            text = "Meta"
-            nextHint = "Jeszcze jedna szybka rundka?"
+            text = "Meta!".kText
+            nextHint = currentObjective.isComplete(moves: statsMoves, penalties: statsPenalties, energy: statsEnergy, style: statsStyle, powerUps: statsPowerUps) ? "Cel rundy zaliczony.".kText : "Cel można poprawić kolejnym przejazdem.".kText
         }
         publishMain { [weak self] in
             self?.status = text
@@ -1808,16 +2384,33 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         let penalties = statsPenalties
         let currentEnergy = statsEnergy
         let style = statsStyle
+        let powerUps = statsPowerUps
+        let objectiveText = currentObjective.progressText(
+            moves: moves,
+            penalties: penalties,
+            energy: currentEnergy,
+            style: style,
+            powerUps: powerUps
+        )
+        let objectiveMet = currentObjective.isComplete(
+            moves: moves,
+            penalties: penalties,
+            energy: currentEnergy,
+            style: style,
+            powerUps: powerUps
+        )
         publishMain { [weak self] in
             self?.moveCount = moves
             self?.penaltyCount = penalties
             self?.energy = currentEnergy
             self?.styleScore = style
+            self?.objectiveProgressText = objectiveText
+            self?.objectiveComplete = objectiveMet
         }
     }
 
     private func publishProgress() {
-        let progress = max(0, min(100, Int((playerLegalProgressT * 100).rounded())))
+        let progress = max(0, min(100, Int((playerLegalProgressT / finishT * 100).rounded())))
         publishMain { [weak self] in
             self?.progressPercent = progress
         }
@@ -2126,13 +2719,13 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         if isManualCameraMode {
             desired = SCNVector3(
                 cap.x + cameraOrbitOffset.x,
-                (isPortraitViewport ? 9.20 : 10.30) + cameraHeightOffset - cameraZoomOffset * 0.34,
-                cap.z - (isPortraitViewport ? 8.95 : 7.80) + cameraOrbitOffset.z + cameraZoomOffset * 0.92
+                (isPortraitViewport ? 10.95 : 10.30) + cameraHeightOffset - cameraZoomOffset * 0.34,
+                cap.z - (isPortraitViewport ? 10.25 : 7.80) + cameraOrbitOffset.z + cameraZoomOffset * 0.92
             )
             lookTarget = SCNVector3(
                 cap.x + cameraOrbitOffset.x * 0.22,
-                0.12,
-                cap.z + cameraOrbitOffset.z * 0.22
+                isPortraitViewport ? 0.06 : 0.12,
+                cap.z + cameraOrbitOffset.z * 0.18
             )
         } else {
             let guide = nextRouteGuideTarget()
@@ -2147,16 +2740,33 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
             let landscapeBackTrim: Float = isPortraitViewport ? 0 : 0.92
             let speedPull: Float = capPriority ? min(0.08, speed * 0.003) : min(0.16, speed * 0.007)
 
-            desired = SCNVector3(
-                cap.x * capWeight + guide.x * guideWeight,
-                8.92 + heightBoost + landscapeLift - min(0.10, speed * 0.004),
-                cap.z - 8.55 + landscapeBackTrim - (capPriority ? 0.75 : 0) + (guide.z - cap.z) * (capPriority ? 0.045 : 0.14) - speedPull
-            )
-            lookTarget = SCNVector3(
-                cap.x * lookCapWeight + guide.x * lookGuideWeight,
-                0.14,
-                cap.z * lookCapWeight + guide.z * lookGuideWeight
-            )
+            if isPortraitViewport {
+                let portraitHeight: Float = capPriority ? 11.65 + portraitSafetyZoom * 0.40 : 11.10
+                let portraitBack: Float = capPriority ? 10.95 : 10.45
+                let portraitLookX = cap.x * (capPriority ? 0.86 : 0.74) + guide.x * (capPriority ? 0.14 : 0.26)
+                let portraitLookZ = cap.z * (capPriority ? 0.74 : 0.50) + guide.z * (capPriority ? 0.26 : 0.50)
+                desired = SCNVector3(
+                    cap.x * (capPriority ? 0.68 : 0.58) + guide.x * (capPriority ? 0.06 : 0.12),
+                    portraitHeight + heightBoost - min(0.06, speed * 0.003),
+                    cap.z - portraitBack - (capPriority ? 0.35 : 0) + (guide.z - cap.z) * (capPriority ? 0.035 : 0.10) - speedPull
+                )
+                lookTarget = SCNVector3(
+                    portraitLookX,
+                    0.06,
+                    portraitLookZ
+                )
+            } else {
+                desired = SCNVector3(
+                    cap.x * capWeight + guide.x * guideWeight,
+                    8.92 + heightBoost + landscapeLift - min(0.10, speed * 0.004),
+                    cap.z - 8.55 + landscapeBackTrim - (capPriority ? 0.75 : 0) + (guide.z - cap.z) * (capPriority ? 0.045 : 0.14) - speedPull
+                )
+                lookTarget = SCNVector3(
+                    cap.x * lookCapWeight + guide.x * lookGuideWeight,
+                    0.14,
+                    cap.z * lookCapWeight + guide.z * lookGuideWeight
+                )
+            }
         }
 
         if force {
@@ -2175,12 +2785,16 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
                 hasCameraTarget = true
             }
         }
-        cameraNode.look(at: smoothedCameraLookTarget)
+        cameraNode.look(
+            at: smoothedCameraLookTarget,
+            up: SCNVector3(0, 1, 0),
+            localFront: SCNVector3(0, 0, -1)
+        )
     }
 
     private func nextRouteGuideTarget() -> SCNVector3 {
         let contact = cachedPlayerContact ?? nearestRouteContact(x: cap.x, z: cap.z)
-        let targetT = clamped(contact.t + (turnPhase == .playerReady ? 0.078 : 0.058), min: 0.045, max: 0.985)
+        let targetT = clamped(contact.t + (turnPhase == .playerReady ? 0.078 : 0.058), min: 0.045, max: finishT)
         let lane = laneOffset(at: contact, x: cap.x, z: cap.z)
         let softenedLane = clamped(lane * 0.34, min: -routeHalfWidth * 0.40, max: routeHalfWidth * 0.40)
         return routePosition(t: targetT, lane: softenedLane)
@@ -2193,7 +2807,7 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         }
         viewportAspectRatio = Float(viewport.width / viewport.height)
         isPortraitViewport = viewport.height >= viewport.width
-        cameraNode.camera?.fieldOfView = isPortraitViewport ? 39 : 45
+        cameraNode.camera?.fieldOfView = isPortraitViewport ? 43 : 45
     }
 
     private func updateProjectedCapAnchor(using renderer: SCNSceneRenderer) {
@@ -2302,6 +2916,27 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         ]))
     }
 
+    private func emitPowerUpFlash(at position: SCNVector3, color: UIColor) {
+        for index in 0..<8 {
+            let spark = SCNBox(width: 0.055, height: 0.055, length: 0.055, chamferRadius: 0.012)
+            spark.firstMaterial = material(color.withAlphaComponent(0.82), roughness: 1, transparency: 0.82)
+            let node = SCNNode(geometry: spark)
+            node.position = position
+            node.eulerAngles.y = Float(index) * (.pi * 2 / 8)
+            dustRoot.addChildNode(node)
+            let angle = Float(index) * (.pi * 2 / 8)
+            let move = SCNVector3(cos(angle) * Float.random(in: 0.30...0.62), 0, sin(angle) * Float.random(in: 0.30...0.62))
+            node.runAction(.sequence([
+                .group([
+                    .moveBy(x: CGFloat(move.x), y: CGFloat.random(in: 0.05...0.22), z: CGFloat(move.z), duration: 0.30),
+                    .rotateBy(x: 0, y: CGFloat(Float.pi), z: 0, duration: 0.30),
+                    .fadeOut(duration: 0.30)
+                ]),
+                .removeFromParentNode()
+            ]))
+        }
+    }
+
     private func emitOffRouteDust(at position: SCNVector3, outward: SCNVector3) {
         for _ in 0..<10 {
             let puff = SCNSphere(radius: CGFloat.random(in: 0.034...0.078))
@@ -2319,6 +2954,13 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
                 ]),
                 .removeFromParentNode()
             ]))
+        }
+    }
+
+    private func flashFeedback(_ text: String) {
+        publishMain { [weak self] in
+            self?.feedbackText = text
+            self?.feedbackCue += 1
         }
     }
 
@@ -2341,10 +2983,10 @@ final class KapselkiSceneController: NSObject, ObservableObject, SCNSceneRendere
         let material = SCNMaterial()
         material.lightingModel = .lambert
         material.diffuse.contents = color
-        material.ambient.contents = color.lighter(by: 0.05)
-        material.emission.contents = color.withAlphaComponent(0.035)
-        material.specular.contents = UIColor.white.withAlphaComponent(max(0.03, 0.16 - roughness * 0.10 + metalness * 0.04))
-        material.shininess = 0.10
+        material.ambient.contents = color.lighter(by: 0.10)
+        material.emission.contents = color.withAlphaComponent(0.060)
+        material.specular.contents = UIColor.white.withAlphaComponent(max(0.01, 0.07 - roughness * 0.045 + metalness * 0.02))
+        material.shininess = 0.035
         material.roughness.contents = roughness
         material.transparency = transparency
         material.isDoubleSided = true
