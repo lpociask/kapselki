@@ -690,8 +690,8 @@ private struct KapselkiRaceView: View {
                     iconName: "house.fill",
                     background: KapselkiTheme.ink.opacity(0.66),
                     foreground: KapselkiTheme.paper,
-                    width: 36,
-                    height: 34,
+                    width: 42,
+                    height: 36,
                     accessibility: "Menu"
                 ) {
                     setCameraControlsVisible(false)
@@ -704,8 +704,8 @@ private struct KapselkiRaceView: View {
                     iconName: "camera.viewfinder",
                     background: isCameraControlVisible ? selectedCharacter.color : KapselkiTheme.blue,
                     foreground: KapselkiTheme.paper,
-                    width: 36,
-                    height: 34,
+                    width: 44,
+                    height: 36,
                     accessibility: "Kamera"
                 ) {
                     setCameraControlsVisible(!isCameraControlVisible)
@@ -714,8 +714,8 @@ private struct KapselkiRaceView: View {
                 dockButton(
                     iconName: "arrow.counterclockwise",
                     background: KapselkiTheme.yellow,
-                    width: 36,
-                    height: 34,
+                    width: 42,
+                    height: 36,
                     accessibility: "Restart"
                 ) {
                     controller.resetRun()
@@ -802,6 +802,7 @@ private struct KapselkiRaceView: View {
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .stroke(KapselkiTheme.ink.opacity(0.12), lineWidth: 1)
                 )
+                .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibility)
@@ -811,7 +812,7 @@ private struct KapselkiRaceView: View {
         Image(systemName: selectedBoard.iconName)
             .font(.system(size: compact ? 13 : 14, weight: .black))
             .foregroundStyle(KapselkiTheme.ink)
-            .frame(width: compact ? 36 : 40, height: compact ? 34 : 36)
+            .frame(width: compact ? 42 : 40, height: compact ? 36 : 36)
             .background(selectedBoard.tint, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
