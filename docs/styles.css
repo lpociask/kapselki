@@ -297,6 +297,42 @@ figcaption {
   box-shadow: var(--shadow);
 }
 
+.appstore {
+  padding: clamp(44px, 8vw, 94px) clamp(18px, 6vw, 86px);
+  background: #ffffff;
+}
+
+.appstore-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+
+.appstore-grid article {
+  min-height: 220px;
+  padding: clamp(24px, 4vw, 42px);
+  background: #fff8e6;
+}
+
+.appstore-grid h3 {
+  margin: 0 0 12px;
+  font-size: clamp(1.35rem, 2.3vw, 2.2rem);
+  line-height: 1;
+  font-weight: 1000;
+}
+
+.appstore-grid p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.62;
+  font-weight: 650;
+}
+
 .text-link {
   display: inline-flex;
   margin-top: 24px;
@@ -322,7 +358,8 @@ footer a {
 
 @media (max-width: 920px) {
   .intro-strip,
-  .roster {
+  .roster,
+  .appstore-grid {
     grid-template-columns: 1fr;
   }
 
@@ -343,8 +380,10 @@ footer a {
   }
 
   nav {
-    gap: 10px;
-    font-size: 0.72rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 10px;
+    font-size: 0.68rem;
   }
 
   .hero {
