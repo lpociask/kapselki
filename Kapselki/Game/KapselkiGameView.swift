@@ -55,6 +55,132 @@ enum KapselkiObjectiveKind: String, Equatable {
     case lowMoves
     case saveEnergy
     case styleScore
+    case shortcut
+}
+
+enum KapselkiRouteStyle: String, CaseIterable, Identifiable, Equatable {
+    case sprint
+    case fast
+    case technical
+    case slalom
+    case risk
+    case endurance
+    case bounce
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .sprint:
+            return KapselkiL10n.pick(pl: "Sprint", en: "Sprint")
+        case .fast:
+            return KapselkiL10n.pick(pl: "Szybkie łuki", en: "Fast curves")
+        case .technical:
+            return KapselkiL10n.pick(pl: "Techniczna", en: "Technical")
+        case .slalom:
+            return KapselkiL10n.pick(pl: "Slalom", en: "Slalom")
+        case .risk:
+            return KapselkiL10n.pick(pl: "Ryzyko albo skrót", en: "Risk or shortcut")
+        case .endurance:
+            return KapselkiL10n.pick(pl: "Długa próba", en: "Long run")
+        case .bounce:
+            return KapselkiL10n.pick(pl: "Odbicia od band", en: "Rebound run")
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .sprint:
+            return KapselkiL10n.pick(pl: "krótko i ostro", en: "short and sharp")
+        case .fast:
+            return KapselkiL10n.pick(pl: "dużo prędkości", en: "lots of speed")
+        case .technical:
+            return KapselkiL10n.pick(pl: "ciasne zakręty", en: "tight turns")
+        case .slalom:
+            return KapselkiL10n.pick(pl: "rytm między bramkami", en: "gate rhythm")
+        case .risk:
+            return KapselkiL10n.pick(pl: "skrót za odwagę", en: "shortcut for bravery")
+        case .endurance:
+            return KapselkiL10n.pick(pl: "energia ma znaczenie", en: "energy matters")
+        case .bounce:
+            return KapselkiL10n.pick(pl: "odbicia i bumpersy", en: "rebounds and bumpers")
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .sprint:
+            return "hare.fill"
+        case .fast:
+            return "bolt.fill"
+        case .technical:
+            return "point.topleft.down.curvedto.point.bottomright.up"
+        case .slalom:
+            return "alternatingcurrent"
+        case .risk:
+            return "arrow.triangle.branch"
+        case .endurance:
+            return "battery.100percent"
+        case .bounce:
+            return "circle.hexagongrid.fill"
+        }
+    }
+
+    var seedSalt: Int {
+        KapselkiRouteStyle.allCases.firstIndex(of: self) ?? 0
+    }
+}
+
+struct KapselkiRoutePack: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let boards: [KapselkiBoard]
+    let styles: [KapselkiRouteStyle]
+
+    static let packs: [KapselkiRoutePack] = [
+        KapselkiRoutePack(
+            id: "block",
+            title: KapselkiL10n.pick(pl: "Pod blokiem", en: "By the Blocks"),
+            subtitle: KapselkiL10n.pick(pl: "chodnik, boisko i szybkie kreski", en: "sidewalk, court, and fast chalk"),
+            boards: [.sidewalk, .schoolyard, .busStop],
+            styles: [.fast, .technical, .risk]
+        ),
+        KapselkiRoutePack(
+            id: "school",
+            title: KapselkiL10n.pick(pl: "Szkoła po lekcjach", en: "After School"),
+            subtitle: KapselkiL10n.pick(pl: "korytarz, slalom i kreda", en: "corridor, slalom, and chalk"),
+            boards: [.schoolyard, .corridor],
+            styles: [.slalom, .technical, .bounce]
+        ),
+        KapselkiRoutePack(
+            id: "room",
+            title: KapselkiL10n.pick(pl: "Pokój dzieciaka", en: "Kid's Room"),
+            subtitle: KapselkiL10n.pick(pl: "dywan, stół i zabawki", en: "carpet, table, and toys"),
+            boards: [.carpet, .table],
+            styles: [.sprint, .bounce, .risk]
+        ),
+        KapselkiRoutePack(
+            id: "summer",
+            title: KapselkiL10n.pick(pl: "Wakacje", en: "Summer Break"),
+            subtitle: KapselkiL10n.pick(pl: "piasek i długa energia", en: "sand and long energy"),
+            boards: [.sand, .grass, .busStop],
+            styles: [.endurance, .sprint, .fast]
+        ),
+        KapselkiRoutePack(
+            id: "masters",
+            title: KapselkiL10n.pick(pl: "Turniej mistrzów", en: "Masters Cup"),
+            subtitle: KapselkiL10n.pick(pl: "najtrudniejsze warianty", en: "the toughest variants"),
+            boards: [.workshop, .corridor, .table, .schoolyard],
+            styles: [.risk, .technical, .slalom, .bounce, .endurance]
+        )
+    ]
+
+    static func pack(for board: KapselkiBoard, style: KapselkiRouteStyle) -> KapselkiRoutePack {
+        packs.first { $0.boards.contains(board) && $0.styles.contains(style) }
+            ?? packs.first { $0.boards.contains(board) }
+            ?? packs[0]
+    }
 }
 
 struct KapselkiObjective: Equatable {
@@ -65,28 +191,21 @@ struct KapselkiObjective: Equatable {
     let iconName: String
     let target: Int
 
-    static func objective(for mode: KapselkiPlayMode, board: KapselkiBoard, stageIndex: Int, date: Date = Date()) -> KapselkiObjective {
+    static func objective(for mode: KapselkiPlayMode, board: KapselkiBoard, style: KapselkiRouteStyle, stageIndex: Int, date: Date = Date()) -> KapselkiObjective {
         switch mode {
         case .quick:
-            return KapselkiObjective(
-                kind: .lowMoves,
-                title: "Szybki finisz".kText,
-                shortTitle: "Meta do 8 pstryków".kText,
-                hint: "Cel: dojedź do mety w maksymalnie 8 pstryków.".kText,
-                iconName: "speedometer",
-                target: 8
-            )
+            return style.defaultObjective
         case .tour:
-            return tourObjectives[min(stageIndex, tourObjectives.count - 1)]
+            return tourObjectives[min(stageIndex, tourObjectives.count - 1)].merged(with: style.defaultObjective, preferStyle: stageIndex.isMultiple(of: 2))
         case .daily:
             let day = Calendar.current.ordinality(of: .day, in: .year, for: date) ?? 1
-            return dailyObjectives[(day + board.rawValue.count) % dailyObjectives.count]
+            return dailyObjectives[(day + board.rawValue.count + style.seedSalt) % dailyObjectives.count]
         case .master:
-            return masterObjectives[min(stageIndex, masterObjectives.count - 1)]
+            return masterObjectives[min(stageIndex, masterObjectives.count - 1)].merged(with: style.defaultObjective, preferStyle: stageIndex == 1 || stageIndex == 3)
         }
     }
 
-    func progressText(moves: Int, penalties: Int, energy: Int, style: Int, powerUps: Int) -> String {
+    func progressText(moves: Int, penalties: Int, energy: Int, style: Int, powerUps: Int, shortcuts: Int) -> String {
         switch kind {
         case .cleanRun:
             return penalties == 0 ? "czysto".kText : KapselkiL10n.pick(pl: "\(penalties) wyjazd", en: "\(penalties) off track")
@@ -98,10 +217,12 @@ struct KapselkiObjective: Equatable {
             return KapselkiL10n.pick(pl: "\(energy)/\(target) energii", en: "\(energy)/\(target) energy")
         case .styleScore:
             return KapselkiL10n.pick(pl: "\(style)/\(target) stylu", en: "\(style)/\(target) style")
+        case .shortcut:
+            return KapselkiL10n.pick(pl: "\(min(shortcuts, target))/\(target) skrót", en: "\(min(shortcuts, target))/\(target) shortcut")
         }
     }
 
-    func isComplete(moves: Int, penalties: Int, energy: Int, style: Int, powerUps: Int) -> Bool {
+    func isComplete(moves: Int, penalties: Int, energy: Int, style: Int, powerUps: Int, shortcuts: Int) -> Bool {
         switch kind {
         case .cleanRun:
             return penalties == 0
@@ -113,7 +234,13 @@ struct KapselkiObjective: Equatable {
             return energy >= target
         case .styleScore:
             return style >= target
+        case .shortcut:
+            return shortcuts >= target
         }
+    }
+
+    func merged(with routeObjective: KapselkiObjective, preferStyle: Bool) -> KapselkiObjective {
+        preferStyle ? routeObjective : self
     }
 
     private static let tourObjectives: [KapselkiObjective] = [
@@ -140,33 +267,60 @@ struct KapselkiObjective: Equatable {
     ]
 }
 
+private extension KapselkiRouteStyle {
+    var defaultObjective: KapselkiObjective {
+        switch self {
+        case .sprint:
+            return KapselkiObjective(kind: .lowMoves, title: KapselkiL10n.pick(pl: "Sprint do mety", en: "Sprint finish"), shortTitle: KapselkiL10n.pick(pl: "Do 7 pstryków", en: "Up to 7 flicks"), hint: KapselkiL10n.pick(pl: "Cel: dojedź do mety w maksymalnie 7 pstryków.", en: "Goal: reach the finish in 7 flicks or fewer."), iconName: "hare.fill", target: 7)
+        case .fast:
+            return KapselkiObjective(kind: .lowMoves, title: "Szybki finisz".kText, shortTitle: "Meta do 8 pstryków".kText, hint: "Cel: dojedź do mety w maksymalnie 8 pstryków.".kText, iconName: "speedometer", target: 8)
+        case .technical:
+            return KapselkiObjective(kind: .cleanRun, title: "Czysta kreda".kText, shortTitle: "Bez wyjazdu".kText, hint: "Cel: przejedź etap bez wyjazdu za kredę.".kText, iconName: "checkmark.seal.fill", target: 0)
+        case .slalom:
+            return KapselkiObjective(kind: .styleScore, title: KapselkiL10n.pick(pl: "Rytm slalomu", en: "Slalom rhythm"), shortTitle: "120 stylu".kText, hint: KapselkiL10n.pick(pl: "Cel: przejedź płynnie i uzbieraj 120 stylu.", en: "Goal: ride smoothly and score 120 style."), iconName: "sparkles", target: 120)
+        case .risk:
+            return KapselkiObjective(kind: .shortcut, title: KapselkiL10n.pick(pl: "Odważny skrót", en: "Brave shortcut"), shortTitle: KapselkiL10n.pick(pl: "Przejedź skrót", en: "Take a shortcut"), hint: KapselkiL10n.pick(pl: "Cel: przejedź przez bramkę skrótu poza bezpieczną linią.", en: "Goal: pass through a shortcut gate outside the safe line."), iconName: "arrow.triangle.branch", target: 1)
+        case .endurance:
+            return KapselkiObjective(kind: .saveEnergy, title: "Zapas siły".kText, shortTitle: "60+ energii".kText, hint: "Cel: dojedź do mety z energią co najmniej 60.".kText, iconName: "bolt.heart.fill", target: 60)
+        case .bounce:
+            return KapselkiObjective(kind: .collectPowerUp, title: KapselkiL10n.pick(pl: "Bumper bonus", en: "Bumper bonus"), shortTitle: "Weź 1 power-up".kText, hint: "Cel: wpadnij kapslem w przynajmniej jeden bonus.".kText, iconName: "circle.hexagongrid.fill", target: 1)
+        }
+    }
+}
+
 struct KapselkiCampaignStage: Identifiable, Equatable {
     let id: Int
     let board: KapselkiBoard
+    let routeStyle: KapselkiRouteStyle
     let title: String
     let subtitle: String
 
     static let stages: [KapselkiCampaignStage] = [
-        KapselkiCampaignStage(id: 0, board: .sidewalk, title: "Blokowy Chodnik".kText, subtitle: "rozgrzewka na płytach".kText),
-        KapselkiCampaignStage(id: 1, board: .schoolyard, title: "Boisko z Kredą".kText, subtitle: "ciasne zakręty".kText),
-        KapselkiCampaignStage(id: 2, board: .grass, title: "Trawnik za Garażem".kText, subtitle: "miękki ślizg".kText),
-        KapselkiCampaignStage(id: 3, board: .sand, title: "Piaskownica Turbo".kText, subtitle: "ciężkie pstryki".kText),
-        KapselkiCampaignStage(id: 4, board: .table, title: "Kuchenny Finał".kText, subtitle: "szybka gładka meta".kText)
+        KapselkiCampaignStage(id: 0, board: .sidewalk, routeStyle: .fast, title: "Blokowy Chodnik".kText, subtitle: "rozgrzewka na płytach".kText),
+        KapselkiCampaignStage(id: 1, board: .schoolyard, routeStyle: .technical, title: "Boisko z Kredą".kText, subtitle: "ciasne zakręty".kText),
+        KapselkiCampaignStage(id: 2, board: .grass, routeStyle: .slalom, title: "Trawnik za Garażem".kText, subtitle: "miękki ślizg".kText),
+        KapselkiCampaignStage(id: 3, board: .busStop, routeStyle: .risk, title: KapselkiL10n.pick(pl: "Przystanek Skrótów", en: "Shortcut Stop"), subtitle: KapselkiL10n.pick(pl: "dwie drogi i ryzyko", en: "two ways and risk")),
+        KapselkiCampaignStage(id: 4, board: .carpet, routeStyle: .bounce, title: KapselkiL10n.pick(pl: "Pokój Bumperów", en: "Bumper Room"), subtitle: KapselkiL10n.pick(pl: "odbicia między zabawkami", en: "rebounds between toys")),
+        KapselkiCampaignStage(id: 5, board: .sand, routeStyle: .endurance, title: "Piaskownica Turbo".kText, subtitle: "ciężkie pstryki".kText),
+        KapselkiCampaignStage(id: 6, board: .table, routeStyle: .sprint, title: "Kuchenny Finał".kText, subtitle: "szybka gładka meta".kText)
     ]
 }
 
 struct KapselkiMasterRound: Identifiable, Equatable {
     let id: Int
     let board: KapselkiBoard
+    let routeStyle: KapselkiRouteStyle
     let title: String
     let subtitle: String
 
     static let rounds: [KapselkiMasterRound] = [
-        KapselkiMasterRound(id: 0, board: .sidewalk, title: "Czysty Start".kText, subtitle: "bez wyjazdu za kredę".kText),
-        KapselkiMasterRound(id: 1, board: .schoolyard, title: "Turbo Kreda".kText, subtitle: "zgarnij dwa bonusy".kText),
-        KapselkiMasterRound(id: 2, board: .grass, title: "Trawnikowy Slalom".kText, subtitle: "krótka seria pstryków".kText),
-        KapselkiMasterRound(id: 3, board: .sand, title: "Piaskowy Spokój".kText, subtitle: "oszczędzaj energię".kText),
-        KapselkiMasterRound(id: 4, board: .table, title: "Finał na Stole".kText, subtitle: "styl ponad wszystko".kText)
+        KapselkiMasterRound(id: 0, board: .sidewalk, routeStyle: .technical, title: "Czysty Start".kText, subtitle: "bez wyjazdu za kredę".kText),
+        KapselkiMasterRound(id: 1, board: .schoolyard, routeStyle: .slalom, title: "Turbo Kreda".kText, subtitle: "zgarnij dwa bonusy".kText),
+        KapselkiMasterRound(id: 2, board: .workshop, routeStyle: .risk, title: KapselkiL10n.pick(pl: "Warsztat Skrótów", en: "Shortcut Workshop"), subtitle: KapselkiL10n.pick(pl: "wąsko, twardo i odważnie", en: "tight, hard, and brave")),
+        KapselkiMasterRound(id: 3, board: .grass, routeStyle: .endurance, title: "Trawnikowy Slalom".kText, subtitle: "krótka seria pstryków".kText),
+        KapselkiMasterRound(id: 4, board: .corridor, routeStyle: .bounce, title: KapselkiL10n.pick(pl: "Korytarz Bander", en: "Rail Corridor"), subtitle: KapselkiL10n.pick(pl: "odbicia od przeszkód", en: "obstacle rebounds")),
+        KapselkiMasterRound(id: 5, board: .sand, routeStyle: .sprint, title: "Piaskowy Spokój".kText, subtitle: "oszczędzaj energię".kText),
+        KapselkiMasterRound(id: 6, board: .table, routeStyle: .fast, title: "Finał na Stole".kText, subtitle: "styl ponad wszystko".kText)
     ]
 }
 
@@ -197,7 +351,9 @@ struct KapselkiGameView: View {
     @State private var selectedPlayMode: KapselkiPlayMode = .quick
     @State private var selectedStageIndex = 0
     @State private var selectedBoard: KapselkiBoard = .sidewalk
+    @State private var selectedRouteStyle: KapselkiRouteStyle = .fast
     @State private var selectedCharacter = KapselkiCharacter.defaultCharacter
+    @StateObject private var audioPlayer = KapselkiAudioPlayer()
     @State private var lockedCharacterNotice: String?
     @State private var unlockBanner: String?
     @AppStorage("kapselki.unlockedCharacters") private var unlockedCharactersRaw = ""
@@ -224,10 +380,13 @@ struct KapselkiGameView: View {
                     KapselkiRaceView(
                         playMode: selectedPlayMode,
                         selectedBoard: selectedBoard,
+                        selectedRouteStyle: selectedRouteStyle,
                         selectedCharacter: selectedCharacter,
                         selectedObjective: currentObjective,
+                        routeSeed: currentRouteSeed,
                         stageIndex: selectedStageIndex,
                         stageCount: currentStageCount,
+                        audioPlayer: audioPlayer,
                         onExit: { flow = .setup },
                         onAdvanceStage: advanceSeriesStage,
                         onRestartSeries: restartSeries,
@@ -237,6 +396,12 @@ struct KapselkiGameView: View {
                 }
             }
             .animation(.snappy(duration: 0.22), value: flow)
+        }
+        .onAppear {
+            audioPlayer.startMusic()
+        }
+        .onDisappear {
+            audioPlayer.stopAll()
         }
         .preferredColorScheme(.light)
     }
@@ -350,12 +515,15 @@ struct KapselkiGameView: View {
                 primaryButton(title: "OSIEDLOWY TOUR".kText, iconName: "map.fill", color: KapselkiTheme.blue, foreground: KapselkiTheme.paper) {
                     selectedPlayMode = .tour
                     selectedStageIndex = stageIndex(for: selectedBoard)
+                    selectedBoard = KapselkiCampaignStage.stages[selectedStageIndex].board
+                    selectedRouteStyle = KapselkiCampaignStage.stages[selectedStageIndex].routeStyle
                     flow = .setup
                 }
 
                 primaryButton(title: "WYZWANIE DNIA".kText, iconName: "calendar.badge.clock", color: KapselkiTheme.green, foreground: KapselkiTheme.ink) {
                     selectedPlayMode = .daily
                     selectedBoard = dailyChallengeBoard()
+                    selectedRouteStyle = dailyChallengeRouteStyle()
                     selectedStageIndex = 0
                     flow = .setup
                 }
@@ -364,6 +532,7 @@ struct KapselkiGameView: View {
                     selectedPlayMode = .master
                     selectedStageIndex = 0
                     selectedBoard = KapselkiMasterRound.rounds[0].board
+                    selectedRouteStyle = KapselkiMasterRound.rounds[0].routeStyle
                     flow = .setup
                 }
 
@@ -437,7 +606,7 @@ struct KapselkiGameView: View {
                     .foregroundStyle(KapselkiTheme.ink)
                     .lineLimit(1)
 
-                Text("\(selectedCharacter.localizedStyle) · \(selectedBoard.title)")
+                Text("\(selectedCharacter.localizedStyle) · \(selectedBoard.title) · \(selectedRouteStyle.title)")
                     .font(.system(size: 11, weight: .black, design: .monospaced))
                     .foregroundStyle(KapselkiTheme.ink.opacity(0.56))
                     .lineLimit(1)
@@ -483,7 +652,20 @@ struct KapselkiGameView: View {
     }
 
     private var currentObjective: KapselkiObjective {
-        KapselkiObjective.objective(for: selectedPlayMode, board: selectedBoard, stageIndex: selectedStageIndex)
+        KapselkiObjective.objective(for: selectedPlayMode, board: selectedBoard, style: selectedRouteStyle, stageIndex: selectedStageIndex)
+    }
+
+    private var currentRouteSeed: Int {
+        let modeSalt = KapselkiPlayMode.allCases.firstIndex(of: selectedPlayMode) ?? 0
+        let boardSalt = KapselkiBoard.allCases.firstIndex(of: selectedBoard) ?? 0
+        let day = Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 1
+        let stageSalt = selectedStageIndex * 97
+        let dailySalt = selectedPlayMode == .daily ? day * 37 : 0
+        return 1000 + modeSalt * 193 + boardSalt * 47 + selectedRouteStyle.seedSalt * 71 + stageSalt + dailySalt
+    }
+
+    private var currentRoutePack: KapselkiRoutePack {
+        KapselkiRoutePack.pack(for: selectedBoard, style: selectedRouteStyle)
     }
 
     private func dailyChallengeBoard(date: Date = Date()) -> KapselkiBoard {
@@ -492,16 +674,24 @@ struct KapselkiGameView: View {
         return boards[day % boards.count]
     }
 
+    private func dailyChallengeRouteStyle(date: Date = Date()) -> KapselkiRouteStyle {
+        let day = Calendar.current.ordinality(of: .day, in: .year, for: date) ?? 1
+        let styles = KapselkiRouteStyle.allCases
+        return styles[(day / 2) % styles.count]
+    }
+
     private func advanceSeriesStage() {
         switch selectedPlayMode {
         case .tour:
             let nextIndex = min(selectedStageIndex + 1, KapselkiCampaignStage.stages.count - 1)
             selectedStageIndex = nextIndex
             selectedBoard = KapselkiCampaignStage.stages[nextIndex].board
+            selectedRouteStyle = KapselkiCampaignStage.stages[nextIndex].routeStyle
         case .master:
             let nextIndex = min(selectedStageIndex + 1, KapselkiMasterRound.rounds.count - 1)
             selectedStageIndex = nextIndex
             selectedBoard = KapselkiMasterRound.rounds[nextIndex].board
+            selectedRouteStyle = KapselkiMasterRound.rounds[nextIndex].routeStyle
         case .quick, .daily:
             break
         }
@@ -512,9 +702,11 @@ struct KapselkiGameView: View {
         case .tour:
             selectedStageIndex = 0
             selectedBoard = KapselkiCampaignStage.stages[0].board
+            selectedRouteStyle = KapselkiCampaignStage.stages[0].routeStyle
         case .master:
             selectedStageIndex = 0
             selectedBoard = KapselkiMasterRound.rounds[0].board
+            selectedRouteStyle = KapselkiMasterRound.rounds[0].routeStyle
         case .quick, .daily:
             break
         }
@@ -618,6 +810,10 @@ struct KapselkiGameView: View {
                 VStack(spacing: 14) {
                     selectedLoadoutCard
                     objectiveSetupCard
+                    routePackCard
+                    if selectedPlayMode == .quick {
+                        routeStyleSelection
+                    }
                     if let unlockBanner {
                         unlockInfoCard(text: unlockBanner, iconName: "sparkles", color: KapselkiTheme.green)
                     }
@@ -669,15 +865,15 @@ struct KapselkiGameView: View {
     private var setupSubtitle: String {
         switch selectedPlayMode {
         case .quick:
-            return KapselkiL10n.pick(pl: "\(selectedCharacter.localizedName) · \(selectedBoard.title) · 3 próby", en: "\(selectedCharacter.localizedName) · \(selectedBoard.title) · 3 runs")
+            return KapselkiL10n.pick(pl: "\(selectedCharacter.localizedName) · \(selectedBoard.title) · \(selectedRouteStyle.title)", en: "\(selectedCharacter.localizedName) · \(selectedBoard.title) · \(selectedRouteStyle.title)")
         case .tour:
             let stage = KapselkiCampaignStage.stages[selectedStageIndex]
-            return KapselkiL10n.pick(pl: "Etap \(selectedStageIndex + 1)/\(KapselkiCampaignStage.stages.count) · \(stage.title)", en: "Stage \(selectedStageIndex + 1)/\(KapselkiCampaignStage.stages.count) · \(stage.title)")
+            return KapselkiL10n.pick(pl: "Etap \(selectedStageIndex + 1)/\(KapselkiCampaignStage.stages.count) · \(stage.title) · \(stage.routeStyle.title)", en: "Stage \(selectedStageIndex + 1)/\(KapselkiCampaignStage.stages.count) · \(stage.title) · \(stage.routeStyle.title)")
         case .daily:
-            return KapselkiL10n.pick(pl: "Dzisiaj · \(dailyChallengeBoard().title) · \(currentObjective.shortTitle)", en: "Today · \(dailyChallengeBoard().title) · \(currentObjective.shortTitle)")
+            return KapselkiL10n.pick(pl: "Dzisiaj · \(dailyChallengeBoard().title) · \(dailyChallengeRouteStyle().title)", en: "Today · \(dailyChallengeBoard().title) · \(dailyChallengeRouteStyle().title)")
         case .master:
             let round = KapselkiMasterRound.rounds[selectedStageIndex]
-            return KapselkiL10n.pick(pl: "Runda \(selectedStageIndex + 1)/\(KapselkiMasterRound.rounds.count) · \(round.title)", en: "Round \(selectedStageIndex + 1)/\(KapselkiMasterRound.rounds.count) · \(round.title)")
+            return KapselkiL10n.pick(pl: "Runda \(selectedStageIndex + 1)/\(KapselkiMasterRound.rounds.count) · \(round.title) · \(round.routeStyle.title)", en: "Round \(selectedStageIndex + 1)/\(KapselkiMasterRound.rounds.count) · \(round.title) · \(round.routeStyle.title)")
         }
     }
 
@@ -792,6 +988,87 @@ struct KapselkiGameView: View {
         )
     }
 
+    private var routePackCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: selectedRouteStyle.iconName)
+                .font(.system(size: 17, weight: .black))
+                .foregroundStyle(KapselkiTheme.paper)
+                .frame(width: 46, height: 42)
+                .background(selectedBoard.tint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(currentRoutePack.title)
+                    .font(.system(size: 15, weight: .black, design: .rounded))
+                    .foregroundStyle(KapselkiTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+
+                Text("\(selectedRouteStyle.title.uppercased()) · \(selectedRouteStyle.subtitle) · \(currentRoutePack.subtitle)")
+                    .font(.system(size: 9, weight: .black, design: .monospaced))
+                    .foregroundStyle(KapselkiTheme.ink.opacity(0.58))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.68)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(selectedBoard.tint.opacity(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(KapselkiTheme.ink.opacity(0.12), lineWidth: 1)
+        )
+    }
+
+    private var routeStyleSelection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("TYP TRASY".kText)
+                .font(.system(size: 11, weight: .black, design: .monospaced))
+                .foregroundStyle(KapselkiTheme.ink.opacity(0.58))
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 138), spacing: 8)], spacing: 8) {
+                ForEach(KapselkiRouteStyle.allCases) { style in
+                    routeStyleButton(style)
+                }
+            }
+        }
+    }
+
+    private func routeStyleButton(_ style: KapselkiRouteStyle) -> some View {
+        let isSelected = selectedRouteStyle == style
+        return Button {
+            selectedRouteStyle = style
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: style.iconName)
+                    .font(.system(size: 13, weight: .black))
+                    .foregroundStyle(isSelected ? KapselkiTheme.paper : KapselkiTheme.ink)
+                    .frame(width: 34, height: 32)
+                    .background(isSelected ? selectedBoard.tint : .white.opacity(0.42), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(style.title)
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(KapselkiTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(style.subtitle)
+                        .font(.system(size: 8, weight: .black, design: .monospaced))
+                        .foregroundStyle(KapselkiTheme.ink.opacity(0.54))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.66)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(8)
+            .frame(height: 50)
+            .background(isSelected ? selectedBoard.tint.opacity(0.18) : .white.opacity(0.22), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
     private var characterStatsRow: some View {
         HStack(spacing: 6) {
             statPill(KapselkiL10n.pick(pl: "MOC", en: "PWR"), selectedCharacter.powerScore, KapselkiTheme.red)
@@ -893,13 +1170,14 @@ struct KapselkiGameView: View {
                     ForEach(KapselkiCampaignStage.stages) { stage in
                         boardButton(
                             title: "\(stage.id + 1). \(stage.title)",
-                            subtitle: stage.subtitle,
+                            subtitle: "\(stage.routeStyle.title) · \(stage.subtitle)",
                             iconName: stage.board.iconName,
                             tint: stage.board.tint,
                             isSelected: selectedStageIndex == stage.id
                         ) {
                             selectedStageIndex = stage.id
                             selectedBoard = stage.board
+                            selectedRouteStyle = stage.routeStyle
                         }
                     }
                 case .daily:
@@ -908,13 +1186,14 @@ struct KapselkiGameView: View {
                     ForEach(KapselkiMasterRound.rounds) { round in
                         boardButton(
                             title: "\(round.id + 1). \(round.title)",
-                            subtitle: "\(round.subtitle) · \(KapselkiObjective.objective(for: .master, board: round.board, stageIndex: round.id).shortTitle)",
+                            subtitle: "\(round.routeStyle.title) · \(round.subtitle) · \(KapselkiObjective.objective(for: .master, board: round.board, style: round.routeStyle, stageIndex: round.id).shortTitle)",
                             iconName: round.board.iconName,
                             tint: round.board.tint,
                             isSelected: selectedStageIndex == round.id
                         ) {
                             selectedStageIndex = round.id
                             selectedBoard = round.board
+                            selectedRouteStyle = round.routeStyle
                         }
                     }
                 }
@@ -924,14 +1203,16 @@ struct KapselkiGameView: View {
 
     private var dailyBoardSelectionButton: some View {
         let board = dailyChallengeBoard()
+        let style = dailyChallengeRouteStyle()
         return boardButton(
             title: KapselkiL10n.pick(pl: "Dzisiaj: \(board.title)", en: "Today: \(board.title)"),
-            subtitle: "\(board.subtitle) · \(currentObjective.shortTitle)",
+            subtitle: "\(style.title) · \(board.subtitle) · \(currentObjective.shortTitle)",
             iconName: board.iconName,
             tint: board.tint,
             isSelected: true
         ) {
             selectedBoard = board
+            selectedRouteStyle = style
             selectedStageIndex = 0
         }
     }
@@ -1045,13 +1326,15 @@ struct KapselkiGameView: View {
 
 private struct KapselkiRaceView: View {
     @StateObject private var controller = KapselkiSceneController()
-    @StateObject private var audioPlayer = KapselkiAudioPlayer()
     let playMode: KapselkiPlayMode
     let selectedBoard: KapselkiBoard
+    let selectedRouteStyle: KapselkiRouteStyle
     let selectedCharacter: KapselkiCharacter
     let selectedObjective: KapselkiObjective
+    let routeSeed: Int
     let stageIndex: Int
     let stageCount: Int
+    let audioPlayer: KapselkiAudioPlayer
     let onExit: () -> Void
     let onAdvanceStage: () -> Void
     let onRestartSeries: () -> Void
@@ -1064,103 +1347,210 @@ private struct KapselkiRaceView: View {
     @State private var quickAttempt = 1
     @State private var feedbackToast: String?
     @State private var feedbackToastID = UUID()
+    @State private var characterBubbleText: String?
+    @State private var characterBubbleID = UUID()
 
     private let quickAttemptLimit = 3
 
     var body: some View {
         GeometryReader { proxy in
-            let isLandscape = proxy.size.width > proxy.size.height
-            let sidePadding = isLandscape ? max(12, proxy.safeAreaInsets.leading + 8) : (proxy.size.width < 430 ? 10 : 14)
+            gameRoot(proxy: proxy)
+        }
+    }
 
-            ZStack {
-                KapselkiSceneView(controller: controller)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .highPriorityGesture(flickGesture(in: proxy.size))
-                    .accessibilityHidden(true)
+    private func configureController() {
+        controller.configure(
+            board: selectedBoard,
+            player: selectedCharacter,
+            mode: playMode,
+            objective: selectedObjective,
+            routeStyle: selectedRouteStyle,
+            routeSeed: routeSeed
+        )
+    }
 
-                VStack(spacing: 0) {
-                    topHUD(proxy: proxy, compact: isLandscape)
+    private func gameRoot(proxy: GeometryProxy) -> AnyView {
+        let isLandscape = proxy.size.width > proxy.size.height
+        let sidePadding = isLandscape ? max(12, proxy.safeAreaInsets.leading + 8) : (proxy.size.width < 430 ? 10 : 14)
 
-                    Spacer(minLength: 0)
-
-                    bottomDock(proxy: proxy, compact: isLandscape)
-                }
-                .padding(.horizontal, sidePadding)
-                .padding(.top, 0)
-                .padding(.bottom, isLandscape ? max(8, proxy.safeAreaInsets.bottom + 6) : max(10, proxy.safeAreaInsets.bottom + 8))
-
-                if isCameraControlVisible {
-                    cameraControlPad(compact: isLandscape)
-                        .padding(.trailing, max(14, proxy.safeAreaInsets.trailing + 10))
-                        .padding(.bottom, isLandscape ? max(76, proxy.safeAreaInsets.bottom + 70) : max(104, proxy.safeAreaInsets.bottom + 96))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                        .transition(.scale(scale: 0.9, anchor: .bottomTrailing).combined(with: .opacity))
-                }
-
-                if controller.isAiming {
-                    aimBubble
-                        .position(controller.aimPreview)
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
-                }
-
-                if let feedbackToast {
-                    feedbackToastView(feedbackToast)
-                        .padding(.top, isLandscape ? 58 : 96)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .transition(.scale(scale: 0.86).combined(with: .opacity))
-                        .allowsHitTesting(false)
-                }
-
-                if let result = controller.finishResult {
-                    finishOverlay(result)
-                        .transition(.scale(scale: 0.94).combined(with: .opacity))
-                }
-            }
+        let base = AnyView(gameSceneContent(proxy: proxy, isLandscape: isLandscape, sidePadding: sidePadding)
             .background(KapselkiTheme.sky)
-            .onAppear {
-                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
-            }
+            .onAppear(perform: handleGameAppear)
+            .onDisappear(perform: handleGameDisappear))
+
+        let configuration = AnyView(base
             .onChange(of: selectedBoard) { _, _ in
-                quickAttempt = 1
-                setCameraControlsVisible(false)
-                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+                handleCourseConfigChanged()
+            }
+            .onChange(of: selectedRouteStyle) { _, _ in
+                handleCourseConfigChanged()
+            }
+            .onChange(of: routeSeed) { _, _ in
+                handleCourseConfigChanged()
             }
             .onChange(of: selectedCharacter) { _, _ in
-                quickAttempt = 1
-                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+                handleSimpleConfigChanged()
             }
             .onChange(of: playMode) { _, _ in
-                quickAttempt = 1
-                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
+                handleSimpleConfigChanged()
             }
             .onChange(of: selectedObjective) { _, _ in
-                quickAttempt = 1
-                controller.configure(board: selectedBoard, player: selectedCharacter, mode: playMode, objective: selectedObjective)
-            }
+                handleSimpleConfigChanged()
+            })
+
+        let cues = AnyView(configuration
             .onChange(of: controller.flickCue) { _, _ in
-                audioPlayer.play("cap_flick")
+                audioPlayer.playFlick()
             }
             .onChange(of: controller.hitCue) { _, _ in
-                audioPlayer.play("cap_hit")
+                audioPlayer.playHit()
+            }
+            .onChange(of: controller.powerUpCue) { _, _ in
+                audioPlayer.playPowerUp()
             }
             .onChange(of: controller.penaltyCue) { _, _ in
-                audioPlayer.play("cap_hit")
+                audioPlayer.playPenalty()
             }
             .onChange(of: controller.finishCue) { _, _ in
-                audioPlayer.play("finish_applause")
-                if let result = controller.finishResult {
-                    handleUnlocks(for: result)
-                }
+                handleFinishCue()
+            }
+            .onChange(of: controller.isMotionAudioActive) { _, isActive in
+                handleMotionAudioChange(isActive)
             }
             .onChange(of: controller.feedbackCue) { _, _ in
                 showFeedbackToast(controller.feedbackText)
             }
+            .onChange(of: controller.characterLineCue) { _, _ in
+                showCharacterBubble(controller.characterLineText)
+            })
+
+        return AnyView(cues
             .sensoryFeedback(.impact(weight: .medium), trigger: controller.flickCue)
             .sensoryFeedback(.impact(weight: .heavy), trigger: controller.hitCue)
+            .sensoryFeedback(.success, trigger: controller.powerUpCue)
             .sensoryFeedback(.impact(weight: .heavy), trigger: controller.feedbackCue)
             .sensoryFeedback(.warning, trigger: controller.penaltyCue)
-            .sensoryFeedback(.success, trigger: controller.finishCue)
+            .sensoryFeedback(.success, trigger: controller.finishCue))
+    }
+
+    private func handleGameAppear() {
+        audioPlayer.startMusic()
+        configureController()
+    }
+
+    private func handleGameDisappear() {
+        audioPlayer.stopSlideLoop()
+    }
+
+    private func handleCourseConfigChanged() {
+        quickAttempt = 1
+        setCameraControlsVisible(false)
+        audioPlayer.stopSlideLoop()
+        configureController()
+    }
+
+    private func handleSimpleConfigChanged() {
+        quickAttempt = 1
+        configureController()
+    }
+
+    private func handleFinishCue() {
+        audioPlayer.playFinish()
+        if let result = controller.finishResult {
+            handleUnlocks(for: result)
+        }
+    }
+
+    private func handleMotionAudioChange(_ isActive: Bool) {
+        if isActive {
+            audioPlayer.startSlideLoop(named: selectedBoard.slideAudioName, volume: selectedBoard.slideAudioVolume)
+        } else {
+            audioPlayer.stopSlideLoop()
+        }
+    }
+
+    private func gameSceneContent(proxy: GeometryProxy, isLandscape: Bool, sidePadding: CGFloat) -> AnyView {
+        AnyView(ZStack {
+            sceneInteractionLayer(proxy: proxy)
+            hudLayer(proxy: proxy, isLandscape: isLandscape, sidePadding: sidePadding)
+            cameraControlsLayer(proxy: proxy, isLandscape: isLandscape)
+            aimOverlayLayer
+            feedbackToastLayer(isLandscape: isLandscape)
+            characterBubbleLayer(isLandscape: isLandscape, sidePadding: sidePadding)
+            finishResultLayer
+        })
+    }
+
+    private func sceneInteractionLayer(proxy: GeometryProxy) -> some View {
+        KapselkiSceneView(controller: controller)
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .highPriorityGesture(flickGesture(in: proxy.size))
+            .accessibilityHidden(true)
+    }
+
+    private func hudLayer(proxy: GeometryProxy, isLandscape: Bool, sidePadding: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            topHUD(proxy: proxy, compact: isLandscape)
+
+            Spacer(minLength: 0)
+
+            bottomDock(proxy: proxy, compact: isLandscape)
+        }
+        .padding(.horizontal, sidePadding)
+        .padding(.top, 0)
+        .padding(.bottom, isLandscape ? max(8, proxy.safeAreaInsets.bottom + 6) : max(10, proxy.safeAreaInsets.bottom + 8))
+    }
+
+    @ViewBuilder
+    private func cameraControlsLayer(proxy: GeometryProxy, isLandscape: Bool) -> some View {
+        if isCameraControlVisible {
+            cameraControlPad(compact: isLandscape)
+                .padding(.trailing, max(14, proxy.safeAreaInsets.trailing + 10))
+                .padding(.bottom, isLandscape ? max(76, proxy.safeAreaInsets.bottom + 70) : max(104, proxy.safeAreaInsets.bottom + 96))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .transition(.scale(scale: 0.9, anchor: .bottomTrailing).combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder
+    private var aimOverlayLayer: some View {
+        if controller.isAiming {
+            aimBubble
+                .position(controller.aimPreview)
+                .transition(.scale(scale: 0.8).combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder
+    private func feedbackToastLayer(isLandscape: Bool) -> some View {
+        if let feedbackToast {
+            feedbackToastView(feedbackToast)
+                .padding(.top, isLandscape ? 58 : 96)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .transition(.scale(scale: 0.86).combined(with: .opacity))
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private func characterBubbleLayer(isLandscape: Bool, sidePadding: CGFloat) -> some View {
+        if let characterBubbleText {
+            let alignment: Alignment = .topTrailing
+            characterBubbleView(characterBubbleText)
+                .padding(.horizontal, sidePadding)
+                .padding(.top, isLandscape ? 76 : 164)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
+                .transition(.scale(scale: 0.86, anchor: .topTrailing).combined(with: .opacity))
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private var finishResultLayer: some View {
+        if let result = controller.finishResult {
+            finishOverlay(result)
+                .transition(.scale(scale: 0.94).combined(with: .opacity))
         }
     }
 
@@ -1272,13 +1662,13 @@ private struct KapselkiRaceView: View {
     private var raceContextText: String {
         switch playMode {
         case .quick:
-            return KapselkiL10n.pick(pl: "Próba \(quickAttempt)/\(quickAttemptLimit)", en: "Run \(quickAttempt)/\(quickAttemptLimit)")
+            return KapselkiL10n.pick(pl: "Próba \(quickAttempt)/\(quickAttemptLimit) · \(selectedRouteStyle.title)", en: "Run \(quickAttempt)/\(quickAttemptLimit) · \(selectedRouteStyle.title)")
         case .tour:
-            return KapselkiL10n.pick(pl: "Etap \(stageIndex + 1)/\(stageCount)", en: "Stage \(stageIndex + 1)/\(stageCount)")
+            return KapselkiL10n.pick(pl: "Etap \(stageIndex + 1)/\(stageCount) · \(selectedRouteStyle.title)", en: "Stage \(stageIndex + 1)/\(stageCount) · \(selectedRouteStyle.title)")
         case .daily:
-            return "Wyzwanie dnia".kText
+            return KapselkiL10n.pick(pl: "Wyzwanie dnia · \(selectedRouteStyle.title)", en: "Daily challenge · \(selectedRouteStyle.title)")
         case .master:
-            return KapselkiL10n.pick(pl: "Runda \(stageIndex + 1)/\(stageCount)", en: "Round \(stageIndex + 1)/\(stageCount)")
+            return KapselkiL10n.pick(pl: "Runda \(stageIndex + 1)/\(stageCount) · \(selectedRouteStyle.title)", en: "Round \(stageIndex + 1)/\(stageCount) · \(selectedRouteStyle.title)")
         }
     }
 
@@ -1722,6 +2112,31 @@ private struct KapselkiRaceView: View {
         .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 5)
     }
 
+    private func characterBubbleView(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "quote.bubble.fill")
+                .font(.system(size: 12, weight: .black))
+                .foregroundStyle(KapselkiTheme.paper)
+                .frame(width: 26, height: 26)
+                .background(selectedCharacter.color, in: Circle())
+
+            Text(text)
+                .font(.system(size: 11, weight: .black, design: .rounded))
+                .foregroundStyle(KapselkiTheme.ink)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .frame(maxWidth: 218, alignment: .leading)
+        .background(KapselkiTheme.paper.opacity(0.94), in: Capsule())
+        .overlay(
+            Capsule()
+                .stroke(selectedCharacter.color.opacity(0.52), lineWidth: 1.3)
+        )
+        .shadow(color: .black.opacity(0.18), radius: 10, x: 0, y: 5)
+    }
+
     private func showFeedbackToast(_ text: String) {
         guard !text.isEmpty else {
             return
@@ -1739,6 +2154,27 @@ private struct KapselkiRaceView: View {
             }
             withAnimation(.easeOut(duration: 0.18)) {
                 feedbackToast = nil
+            }
+        }
+    }
+
+    private func showCharacterBubble(_ text: String) {
+        guard !text.isEmpty else {
+            return
+        }
+
+        let bubbleID = UUID()
+        characterBubbleID = bubbleID
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.78)) {
+            characterBubbleText = text
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.45) {
+            guard characterBubbleID == bubbleID else {
+                return
+            }
+            withAnimation(.easeOut(duration: 0.18)) {
+                characterBubbleText = nil
             }
         }
     }
@@ -1776,6 +2212,8 @@ private struct KapselkiRaceView: View {
                     resultTile("\(result.styleScore)", "Styl".kText)
                 }
 
+                trickAlbumView(result.tricks)
+
                 Button {
                     handleFinishPrimaryAction()
                 } label: {
@@ -1804,6 +2242,68 @@ private struct KapselkiRaceView: View {
         .shadow(color: .black.opacity(0.22), radius: 24, x: 0, y: 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(KapselkiTheme.ink.opacity(0.14).ignoresSafeArea())
+    }
+
+    @ViewBuilder
+    private func trickAlbumView(_ tricks: [KapselkiTrickEntry]) -> some View {
+        if !tricks.isEmpty {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11, weight: .black))
+                    Text(KapselkiL10n.pick(pl: "SZTUCZKI Z PRZEJAZDU", en: "RUN TRICKS"))
+                        .font(.system(size: 9, weight: .black, design: .monospaced))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(KapselkiTheme.ink.opacity(0.62))
+
+                HStack(spacing: 6) {
+                    ForEach(tricks.prefix(3)) { trick in
+                        trickBadge(trick)
+                    }
+                }
+            }
+            .padding(9)
+            .background(KapselkiTheme.blue.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(KapselkiTheme.ink.opacity(0.12), lineWidth: 1)
+            )
+        }
+    }
+
+    private func trickBadge(_ trick: KapselkiTrickEntry) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: trick.iconName)
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundStyle(selectedCharacter.color)
+
+                if trick.isNew {
+                    Text(KapselkiL10n.pick(pl: "NOWE", en: "NEW"))
+                        .font(.system(size: 6, weight: .black, design: .monospaced))
+                        .foregroundStyle(KapselkiTheme.ink)
+                        .padding(.horizontal, 4)
+                        .frame(height: 13)
+                        .background(KapselkiTheme.yellow, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                }
+            }
+
+            Text(trick.title)
+                .font(.system(size: 9, weight: .black, design: .rounded))
+                .foregroundStyle(KapselkiTheme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+
+            Text(trick.subtitle)
+                .font(.system(size: 7, weight: .bold, design: .rounded))
+                .foregroundStyle(KapselkiTheme.ink.opacity(0.58))
+                .lineLimit(2)
+                .minimumScaleFactor(0.62)
+        }
+        .padding(7)
+        .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
+        .background(KapselkiTheme.paper.opacity(0.66), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
     }
 
     private var finishConfettiLayer: some View {

@@ -17,6 +17,14 @@
 		A00000000000000000000008 /* cap_hit.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* cap_hit.wav */; };
 		A00000000000000000000009 /* finish_applause.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000009 /* finish_applause.wav */; };
 		A00000000000000000000010 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000013 /* InfoPlist.strings */; };
+		A00000000000000000000011 /* cap_slide_concrete_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000014 /* cap_slide_concrete_loop.wav */; };
+		A00000000000000000000012 /* cap_slide_grass_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000015 /* cap_slide_grass_loop.wav */; };
+		A00000000000000000000013 /* cap_slide_sand_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000016 /* cap_slide_sand_loop.wav */; };
+		A00000000000000000000014 /* cap_slide_table_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000017 /* cap_slide_table_loop.wav */; };
+		A00000000000000000000015 /* powerup_chime.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000018 /* powerup_chime.wav */; };
+		A00000000000000000000016 /* penalty_squeak.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* penalty_squeak.wav */; };
+		A00000000000000000000017 /* finish_fanfare.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000020 /* finish_fanfare.wav */; };
+		A00000000000000000000018 /* playground_theme_loop.wav in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000021 /* playground_theme_loop.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +40,14 @@
 		B00000000000000000000010 /* Kapselki.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Kapselki.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B00000000000000000000011 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		B00000000000000000000012 /* pl */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = pl; path = pl.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		B00000000000000000000014 /* cap_slide_concrete_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = cap_slide_concrete_loop.wav; sourceTree = "<group>"; };
+		B00000000000000000000015 /* cap_slide_grass_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = cap_slide_grass_loop.wav; sourceTree = "<group>"; };
+		B00000000000000000000016 /* cap_slide_sand_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = cap_slide_sand_loop.wav; sourceTree = "<group>"; };
+		B00000000000000000000017 /* cap_slide_table_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = cap_slide_table_loop.wav; sourceTree = "<group>"; };
+		B00000000000000000000018 /* powerup_chime.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powerup_chime.wav; sourceTree = "<group>"; };
+		B00000000000000000000019 /* penalty_squeak.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = penalty_squeak.wav; sourceTree = "<group>"; };
+		B00000000000000000000020 /* finish_fanfare.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = finish_fanfare.wav; sourceTree = "<group>"; };
+		B00000000000000000000021 /* playground_theme_loop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = playground_theme_loop.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +112,7 @@
 			isa = PBXGroup;
 			children = (
 				D00000000000000000000008 /* SFX */,
+				D00000000000000000000009 /* Music */,
 			);
 			path = Audio;
 			sourceTree = "<group>";
@@ -113,9 +130,24 @@
 			children = (
 				B00000000000000000000007 /* cap_flick.wav */,
 				B00000000000000000000008 /* cap_hit.wav */,
+				B00000000000000000000014 /* cap_slide_concrete_loop.wav */,
+				B00000000000000000000015 /* cap_slide_grass_loop.wav */,
+				B00000000000000000000016 /* cap_slide_sand_loop.wav */,
+				B00000000000000000000017 /* cap_slide_table_loop.wav */,
 				B00000000000000000000009 /* finish_applause.wav */,
+				B00000000000000000000020 /* finish_fanfare.wav */,
+				B00000000000000000000019 /* penalty_squeak.wav */,
+				B00000000000000000000018 /* powerup_chime.wav */,
 			);
 			path = SFX;
+			sourceTree = "<group>";
+		};
+		D00000000000000000000009 /* Music */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000021 /* playground_theme_loop.wav */,
+			);
+			path = Music;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -192,7 +224,15 @@
 				A00000000000000000000006 /* Assets.xcassets in Resources */,
 				A00000000000000000000007 /* cap_flick.wav in Resources */,
 				A00000000000000000000008 /* cap_hit.wav in Resources */,
+				A00000000000000000000011 /* cap_slide_concrete_loop.wav in Resources */,
+				A00000000000000000000012 /* cap_slide_grass_loop.wav in Resources */,
+				A00000000000000000000013 /* cap_slide_sand_loop.wav in Resources */,
+				A00000000000000000000014 /* cap_slide_table_loop.wav in Resources */,
 				A00000000000000000000009 /* finish_applause.wav in Resources */,
+				A00000000000000000000017 /* finish_fanfare.wav in Resources */,
+				A00000000000000000000016 /* penalty_squeak.wav in Resources */,
+				A00000000000000000000018 /* playground_theme_loop.wav in Resources */,
+				A00000000000000000000015 /* powerup_chime.wav in Resources */,
 				A00000000000000000000010 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
